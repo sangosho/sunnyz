@@ -59,7 +59,7 @@ final class AchievementManager: ObservableObject {
         }
     }
 
-    private func saveAchievements() {
+    func saveAchievements() {
         if let encoded = try? JSONEncoder().encode(achievements) {
             UserDefaults.standard.set(encoded, forKey: kAchievements)
         }
@@ -281,6 +281,8 @@ final class AchievementManager: ObservableObject {
     }
 
     private func sendAchievementNotification(_ achievement: Achievement) {
+        guard Bundle.main.bundlePath.hasSuffix(".app") else { return }
+
         let content = UNMutableNotificationContent()
         content.title = "Achievement Unlocked! 🏆"
         content.body = "\(achievement.icon) \(achievement.title)"

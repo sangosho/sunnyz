@@ -36,7 +36,8 @@ struct SunnyZApp: App {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+ @MainActor
+ class AppDelegate: NSObject, NSApplicationDelegate {
     var menuBarController: MenuBarController!
     private var sleepStartTime: Date?
     
@@ -97,6 +98,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func setupNotifications() {
+        // UNUserNotificationCenter requires a proper .app bundle;
+        // guard against crashes when running via `swift run` (SPM executable)
+        guard Bundle.main.bundlePath.hasSuffix(".app") else {
+            print("[SunnyZ] Skipping notification setup — not running from an .app bundle")
+            return
+        }
+
         // Set the notification delegate
         UNUserNotificationCenter.current().delegate = NotificationManager.shared
         
@@ -233,11 +241,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-// MARK: - Extension for LuxSensorManager shared access
-
-extension LuxSensorManager {
-    static let shared = LuxSensorManager()
-}
+// LuxSensorManager.shared is now defined in its LuxSensorManager.swift
 
 // MARK: - Notification Names
 

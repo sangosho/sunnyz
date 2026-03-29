@@ -77,7 +77,16 @@ final class NotificationManager: NSObject, ObservableObject {
     private let kHasShown5MinWarning = "sunnyz.notifications.hasShown5Min"
     private let kHasShownTaxApplied = "sunnyz.notifications.hasShownTaxApplied"
     private let kLastTaxStatus = "sunnyz.notifications.lastTaxStatus"
-    
+
+    /// Whether we can safely use UNUserNotificationCenter (requires .app bundle)
+    private nonisolated static var canUseNotifications: Bool {
+        Bundle.main.bundlePath.hasSuffix(".app")
+    }
+
+    private var canUseNotifications: Bool {
+        Self.canUseNotifications
+    }
+
     static let shared = NotificationManager()
     
     // MARK: - Notification Identifiers
@@ -143,16 +152,17 @@ final class NotificationManager: NSObject, ObservableObject {
         self.hasShownTaxApplied = defaults.bool(forKey: kHasShownTaxApplied)
         
         super.init()
-        
+
         // Set up notification delegate
+        guard canUseNotifications else { return }
         UNUserNotificationCenter.current().delegate = self
-        
+
         // Register notification categories
         registerNotificationCategories()
-        
+
         // Check authorization status
         checkAuthorizationStatus()
-        
+
         // Schedule daily summary if enabled
         if dailySummaryEnabled {
             scheduleDailySummary()
@@ -177,6 +187,7 @@ final class NotificationManager: NSObject, ObservableObject {
     // MARK: - Authorization
     
     func requestAuthorization() {
+        guard canUseNotifications else { return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             Task { @MainActor in
                 self.isAuthorized = granted
@@ -192,6 +203,7 @@ final class NotificationManager: NSObject, ObservableObject {
     }
     
     private func checkAuthorizationStatus() {
+        guard canUseNotifications else { return }
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             Task { @MainActor in
                 self.isAuthorized = settings.authorizationStatus == .authorized
@@ -202,6 +214,8 @@ final class NotificationManager: NSObject, ObservableObject {
     // MARK: - Notification Categories
     
     private func registerNotificationCategories() {
+        guard canUseNotifications else { return }
+
         // Tax applied category with actions
         let payTaxAction = UNNotificationAction(
             identifier: NotificationID.actionPayTax,
@@ -333,6 +347,7 @@ final class NotificationManager: NSObject, ObservableObject {
     }
     
     private func send30MinuteWarning(timeUntilTax: TimeInterval) {
+        guard canUseNotifications else { return }
         let content = UNMutableNotificationContent()
         content.title = "⏰ Sunlight Tax Warning"
         content.body = warning30MinMessages.randomElement() ?? warning30MinMessages[0]
@@ -355,6 +370,7 @@ final class NotificationManager: NSObject, ObservableObject {
     }
     
     private func send5MinuteWarning(timeUntilTax: TimeInterval) {
+        guard canUseNotifications else { return }
         let content = UNMutableNotificationContent()
         content.title = "🚨 FINAL WARNING"
         content.body = warning5MinMessages.randomElement() ?? warning5MinMessages[0]
@@ -379,6 +395,7 @@ final class NotificationManager: NSObject, ObservableObject {
     // MARK: - Tax Applied Notification
     
     private func sendTaxAppliedNotification() {
+        guard canUseNotifications else { return }
         let content = UNMutableNotificationContent()
         content.title = "💸 Sunlight Tax Applied!"
         content.body = taxAppliedMessages.randomElement() ?? taxAppliedMessages[0]
@@ -404,6 +421,7 @@ final class NotificationManager: NSObject, ObservableObject {
     // MARK: - Daily Summary
     
     func scheduleDailySummary() {
+        guard canUseNotifications else { return }
         guard notificationsEnabled && dailySummaryEnabled && isAuthorized else { return }
         
         // Cancel existing summary
@@ -450,8 +468,8 @@ final class NotificationManager: NSObject, ObservableObject {
         content.title = "🌅 Daily Cave Report"
         content.categoryIdentifier = NotificationID.dailySummary
         
-        // Get stats from UserDefaults
-        let taxManager = SunlightTaxManager()
+        // Get stats from shared instance
+        let taxManager = SunlightTaxManager.shared
         let timeInDarkness = taxManager.formattedTimeInDarkness
         let totalTax = taxManager.formattedTotalTax
         let status = taxManager.taxStatus.icon
@@ -464,6 +482,7 @@ final class NotificationManager: NSObject, ObservableObject {
     }
     
     func cancelDailySummary() {
+        guard canUseNotifications else { return }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [NotificationID.dailySummary])
     }
     
@@ -476,6 +495,7 @@ final class NotificationManager: NSObject, ObservableObject {
     // MARK: - State Management
     
     func resetNotificationState() {
+        guard canUseNotifications else { return }
         // Called when user goes outside (sunlight detected) or threshold changes
         hasShown30MinWarning = false
         hasShown5MinWarning = false
@@ -500,6 +520,7 @@ final class NotificationManager: NSObject, ObservableObject {
     }
     
     func clearBadge() {
+        guard canUseNotifications else { return }
         UNUserNotificationCenter.current().setBadgeCount(0)
     }
     
@@ -528,6 +549,7 @@ final class NotificationManager: NSObject, ObservableObject {
     
     /// Sends a test 30-minute warning style notification immediately (bypasses state checks)
     public func sendTestWarningNotification() {
+        guard canUseNotifications else { return }
         let content = UNMutableNotificationContent()
         content.title = "🧪 Test: Sunlight Tax Warning"
         content.body = warning30MinMessages.randomElement() ?? warning30MinMessages[0]
@@ -551,6 +573,7 @@ final class NotificationManager: NSObject, ObservableObject {
     
     /// Sends a test tax applied style notification immediately (bypasses state checks)
     public func sendTestTaxAppliedNotification() {
+        guard canUseNotifications else { return }
         let content = UNMutableNotificationContent()
         content.title = "🧪 Test: Sunlight Tax Applied!"
         content.body = taxAppliedMessages.randomElement() ?? taxAppliedMessages[0]
@@ -575,6 +598,7 @@ final class NotificationManager: NSObject, ObservableObject {
     
     /// Sends a test daily summary style notification immediately (bypasses state checks)
     public func sendTestDailySummary() {
+        guard canUseNotifications else { return }
         let content = createDailySummaryContent()
         content.title = "🧪 Test: Daily Cave Report"
         
@@ -595,6 +619,7 @@ final class NotificationManager: NSObject, ObservableObject {
     
     /// Sends a test snarky reminder notification immediately using SnarkManager
     public func sendTestSnarkyReminder() {
+        guard canUseNotifications else { return }
         let content = UNMutableNotificationContent()
         content.title = "🧪 Test: Snarky Reminder"
         content.body = SnarkManager.shared.getSnarkyMessage()
@@ -631,32 +656,46 @@ final class NotificationManager: NSObject, ObservableObject {
 
 extension NotificationManager: UNUserNotificationCenterDelegate {
     
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        guard Self.canUseNotifications else {
+            completionHandler([])
+            return
+        }
         // Show notification even when app is in foreground
         completionHandler([.banner, .sound, .badge])
     }
     
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        guard Self.canUseNotifications else {
+            completionHandler()
+            return
+        }
         let actionIdentifier = response.actionIdentifier
-        
+
         // Handle default "tap" action
         if actionIdentifier == UNNotificationDefaultActionIdentifier {
             let notificationId = response.notification.request.identifier
-            if notificationId == NotificationID.taxApplied {
-                handleNotificationAction(identifier: NotificationID.actionPayTax)
-            } else if notificationId == NotificationID.dailySummary {
-                handleNotificationAction(identifier: NotificationID.actionViewStats)
+            // Use Task to hop back to MainActor for action handling
+            Task { @MainActor in
+                if notificationId == NotificationID.taxApplied {
+                    handleNotificationAction(identifier: NotificationID.actionPayTax)
+                } else if notificationId == NotificationID.dailySummary {
+                    handleNotificationAction(identifier: NotificationID.actionViewStats)
+                }
             }
         } else {
-            handleNotificationAction(identifier: actionIdentifier)
+            // Use Task to hop back to MainActor for action handling
+            Task { @MainActor in
+                handleNotificationAction(identifier: actionIdentifier)
+            }
         }
         
         completionHandler()

@@ -44,6 +44,8 @@ enum LuxAccuracy: Equatable {
 @MainActor
 final class LuxSensorManager: ObservableObject {
     
+    static let shared = LuxSensorManager()
+    
     // MARK: - Published State
     @Published var currentLux: Double = 0
     @Published var accuracy: LuxAccuracy = .estimated
@@ -86,7 +88,8 @@ final class LuxSensorManager: ObservableObject {
     }
     
     deinit {
-        releaseServices()
+        // Don't access @MainActor-isolated properties from deinit.
+        // IOKit handles are cleaned up by the OS when the process exits.
     }
     
     // MARK: - ALS Detection
@@ -135,7 +138,7 @@ final class LuxSensorManager: ObservableObject {
             return overrideLux
         }
         
-        let lux: Double
+        var lux: Double
         
         if hasALSSensor {
             lux = readFromALSSensor()
@@ -195,41 +198,38 @@ final class LuxSensorManager: ObservableObject {
     private func readFromAppleBacklightDisplay(service: io_object_t) -> Double {
         var luxValue: Double = 0
         
-        if let properties = IORegistryEntryCreateCFProperties(
-            service,
-            nil,
-            kCFAllocatorDefault,
-            0
-        ).takeRetainedValue() as? [String: Any] {
-            
-            // Try to read ALSAmbientLightSensor property
-            if let alsData = properties[ALSKey.ambientLightSensor] as? [String: Any] {
-                // Try direct lux value
-                if let lux = alsData[ALSKey.lux] as? Double {
-                    luxValue = lux
-                } else if let lux = alsData[ALSKey.lux] as? Int {
-                    luxValue = Double(lux)
-                } else if let lux = alsData[ALSKey.lux] as? Float {
-                    luxValue = Double(lux)
-                }
-                
-                // If no lux key, try channel values (some Macs use these)
-                if luxValue == 0 {
-                    if let ch0 = alsData[ALSKey.channel0] as? Double,
-                       let ch1 = alsData[ALSKey.channel1] as? Double {
-                        // Convert channel values to approximate lux
-                        luxValue = convertChannelsToLux(ch0: ch0, ch1: ch1)
-                    }
-                }
+        var properties: Unmanaged<CFMutableDictionary>?
+        let result = IORegistryEntryCreateCFProperties(service, &properties, nil, 0)
+        guard result == KERN_SUCCESS, let props = properties else { return 0 }
+        guard let dict = props.takeRetainedValue() as? [String: Any] else { return 0 }
+        
+        // Try to read ALSAmbientLightSensor property
+        if let alsData = dict[ALSKey.ambientLightSensor] as? [String: Any] {
+            // Try direct lux value
+            if let lux = alsData[ALSKey.lux] as? Double {
+                luxValue = lux
+            } else if let lux = alsData[ALSKey.lux] as? Int {
+                luxValue = Double(lux)
+            } else if let lux = alsData[ALSKey.lux] as? Float {
+                luxValue = Double(lux)
             }
             
-            // Alternative: Try DisplayParameters if no ALS data
-            if luxValue == 0,
-               let displayParams = properties["DisplayParameters"] as? [String: Any],
-               let brightness = displayParams["Brightness"] as? Double {
-                // Estimate lux from brightness (very rough approximation)
-                luxValue = brightness * 500
+            // If no lux key, try channel values (some Macs use these)
+            if luxValue == 0 {
+                if let ch0 = alsData[ALSKey.channel0] as? Double,
+                   let ch1 = alsData[ALSKey.channel1] as? Double {
+                    // Convert channel values to approximate lux
+                    luxValue = convertChannelsToLux(ch0: ch0, ch1: ch1)
+                }
             }
+        }
+        
+        // Alternative: Try DisplayParameters if no ALS data
+        if luxValue == 0,
+           let displayParams = dict["DisplayParameters"] as? [String: Any],
+           let brightness = displayParams["Brightness"] as? Double {
+            // Estimate lux from brightness (very rough approximation)
+            luxValue = brightness * 500
         }
         
         return luxValue
@@ -239,28 +239,25 @@ final class LuxSensorManager: ObservableObject {
     private func readFromLMUController(service: io_object_t) -> Double {
         var luxValue: Double = 0
         
-        if let properties = IORegistryEntryCreateCFProperties(
-            service,
-            nil,
-            kCFAllocatorDefault,
-            0
-        ).takeRetainedValue() as? [String: Any] {
-            
-            // LMUController uses different property structure
-            if let sensorData = properties["SensorData"] as? [String: Any] {
-                if let lux = sensorData["Lux"] as? Double {
-                    luxValue = lux
-                } else if let lux = sensorData["lux"] as? Double {
-                    luxValue = lux
-                }
+        var properties: Unmanaged<CFMutableDictionary>?
+        let result = IORegistryEntryCreateCFProperties(service, &properties, nil, 0)
+        guard result == KERN_SUCCESS, let props = properties else { return 0 }
+        guard let dict = props.takeRetainedValue() as? [String: Any] else { return 0 }
+        
+        // LMUController uses different property structure
+        if let sensorData = dict["SensorData"] as? [String: Any] {
+            if let lux = sensorData["Lux"] as? Double {
+                luxValue = lux
+            } else if let lux = sensorData["lux"] as? Double {
+                luxValue = lux
             }
-            
-            // Try raw sensor values
-            if luxValue == 0,
-               let rawData = properties["RawSensorData"] as? [Int] {
-                if rawData.count >= 2 {
-                    luxValue = convertChannelsToLux(ch0: Double(rawData[0]), ch1: Double(rawData[1]))
-                }
+        }
+        
+        // Try raw sensor values
+        if luxValue == 0,
+           let rawData = dict["RawSensorData"] as? [Int] {
+            if rawData.count >= 2 {
+                luxValue = convertChannelsToLux(ch0: Double(rawData[0]), ch1: Double(rawData[1]))
             }
         }
         

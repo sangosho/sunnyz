@@ -25,7 +25,7 @@ struct Achievement: Identifiable, Codable, Equatable {
         case special = "Special"
     }
 
-    enum AchievementCondition: Codable {
+    enum AchievementCondition: Codable, Equatable {
         case vampireDarkness(hours: Int)
         case caveTrollDays(days: Int, dailyHours: Int)
         case diamondHands(payments: Int)

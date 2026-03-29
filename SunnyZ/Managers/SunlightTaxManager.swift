@@ -14,6 +14,7 @@ import Combine
 @MainActor
 final class SunlightTaxManager: ObservableObject {
     
+    static let shared = SunlightTaxManager()
     // MARK: - Published State
     
     @Published var currentLux: Double = 0
@@ -75,12 +76,12 @@ final class SunlightTaxManager: ObservableObject {
             }
         }
         
-        var color: NSColor {
+        var color: String {
             switch self {
-            case .exempt: return .systemYellow
-            case .warning: return .systemOrange
-            case .taxed: return .systemRed
-            case .premium: return .systemPurple
+            case .exempt: return "#4CAF50"
+            case .warning: return "#FF9800"
+            case .taxed: return "#F44336"
+            case .premium: return "#9C27B0"
             }
         }
     }
@@ -116,9 +117,7 @@ final class SunlightTaxManager: ObservableObject {
     }
     
     deinit {
-        stopMonitoring()
-        saveState()
-        releaseDisplayService()
+        // Can't call actor-isolated methods from deinit
     }
 
     private func releaseDisplayService() {
@@ -208,7 +207,7 @@ final class SunlightTaxManager: ObservableObject {
     
     private func updateSunlightStatus() {
         // Use LuxSensorManager for readings
-        let lux = luxSensor.readLux()
+        let lux = luxSensor.currentLux
         currentLux = lux
         luxAccuracy = luxSensor.accuracy
         currentDisplayBrightness = getDisplayBrightness()
@@ -297,6 +296,7 @@ final class SunlightTaxManager: ObservableObject {
         var brightness: Float = 1.0
         IODisplayGetFloatParameter(
             displayService,
+            0,
             kIODisplayBrightnessKey as CFString,
             &brightness
         )
@@ -308,6 +308,7 @@ final class SunlightTaxManager: ObservableObject {
         let clampedValue = max(0, min(1, Float(value)))
         IODisplaySetFloatParameter(
             displayService,
+            0,
             kIODisplayBrightnessKey as CFString,
             clampedValue
         )

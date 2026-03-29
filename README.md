@@ -71,9 +71,14 @@ swift build
 # Run:
 swift run
 
+# Run tests:
+swift test
+
 # Or build release:
 swift build -c release
 ```
+
+> **Note:** `swift run` works for basic testing but notifications are disabled (requires a proper .app bundle). For the full experience, open with Xcode: `open Package.swift` then press ⌘R.
 
 ## Permissions
 
@@ -109,9 +114,14 @@ SunnyZ/
 │   ├── PremiumSubscriptionView.swift # Premium upsell
 │   ├── SettingsView.swift           # Settings panel (4 tabs)
 │   └── AchievementsView.swift       # Badge gallery with sharing
-└── Models/
-    ├── Achievement.swift            # Badge data model
-    └── ...
+├── Models/
+│   ├── Achievement.swift            # Badge data model
+│   └── ...
+└── SunnyZTests/                    # XCTest suite
+    ├── AchievementTests.swift      # Achievement model tests
+    ├── SettingsManagerTests.swift   # Settings persistence tests
+    ├── SnarkManagerTests.swift      # Snarky message tests
+    └── SunlightTaxManagerTests.swift # Tax logic tests
 ```
 
 ## Troubleshooting
@@ -144,6 +154,11 @@ SunnyZ/
 ### Multiple displays
 - Brightness control applies to the primary display
 - ALS sensor is read from the built-in display on MacBooks
+
+### App crashes on `swift run`
+- This is expected — `UNUserNotificationCenter` requires a .app bundle
+- Notifications are automatically disabled when not running from Xcode
+- Use Xcode for the full experience: `open Package.swift`
 
 ## App Store Information
 

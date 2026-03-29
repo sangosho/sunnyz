@@ -19,10 +19,20 @@ let package = Package(
             name: "SunnyZ",
             dependencies: [],
             path: "SunnyZ",
+            exclude: ["Info.plist"],
+            resources: [
+                .process("Assets.xcassets"),
+                .process("Preview Content/Preview Assets.xcassets"),
+            ],
             swiftSettings: [
                 .unsafeFlags(["-framework", "IOKit"]),
                 .unsafeFlags(["-framework", "ServiceManagement"])
             ]
+        ),
+        .testTarget(
+            name: "SunnyZTests",
+            dependencies: ["SunnyZ"],
+            path: "SunnyZTests"
         ),
     ]
 )

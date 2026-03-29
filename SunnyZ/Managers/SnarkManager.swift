@@ -268,7 +268,7 @@ final class SnarkManager: ObservableObject {
     
     /// Sends a reminder notification if conditions are met
     func sendReminderIfAppropriate() {
-        let taxManager = SunlightTaxManager()
+        let taxManager = SunlightTaxManager.shared
         
         // Only show reminders when:
         // 1. In darkness (not sunlight)
@@ -295,6 +295,8 @@ final class SnarkManager: ObservableObject {
     }
     
     private func sendReminderNotification(message: String, isTest: Bool = false) {
+        guard Bundle.main.bundlePath.hasSuffix(".app") else { return }
+
         let content = UNMutableNotificationContent()
         content.title = isTest ? "🧪 Test Reminder" : "☀️ Go Outside!"
         content.body = message

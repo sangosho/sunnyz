@@ -423,7 +423,7 @@ struct MenuPopoverView: View {
     
     private func showPremium() {
         // Close popover and open premium window
-        NSApp.sendAction(#selector(NSPopover.performClose(_)), to: nil, from: nil)
+        NSApp.sendAction(Selector(("performClose:")), to: nil, from: nil)
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationCenter.default.post(name: .showPremium, object: nil)
@@ -432,7 +432,7 @@ struct MenuPopoverView: View {
     
     private func showSettings() {
         // Close popover and open settings window
-        NSApp.sendAction(#selector(NSPopover.performClose(_)), to: nil, from: nil)
+        NSApp.sendAction(Selector(("performClose:")), to: nil, from: nil)
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationCenter.default.post(name: .showSettings, object: nil)
