@@ -51,7 +51,7 @@ struct ConfettiView: View {
     }
 }
 
-struct ConfettiParticle: Identable {
+struct ConfettiParticle: Identifiable {
     let id = UUID()
     var x: CGFloat
     var y: CGFloat

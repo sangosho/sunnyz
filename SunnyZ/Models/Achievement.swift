@@ -40,7 +40,7 @@ struct Achievement: Identifiable, Codable, Equatable {
         // Cave Dwelling achievements
         Achievement(
             id: "vampire",
-            icon: "🧛",
+            icon: "🦇",
             title: "Vampire",
             description: "Stay in darkness for 24+ hours without sunlight",
             category: .caveDwelling,
@@ -60,7 +60,7 @@ struct Achievement: Identifiable, Codable, Equatable {
         ),
         Achievement(
             id: "nightOwl",
-            icon: "🦉",
+            icon: "🌙",
             title: "Night Owl",
             description: "Be active only between 10pm-6am for 3 days",
             category: .caveDwelling,
