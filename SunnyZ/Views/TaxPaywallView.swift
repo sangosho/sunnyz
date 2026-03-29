@@ -2,7 +2,7 @@
 //  TaxPaywallView.swift
 //  SunnyZ
 //
-//  The paywall for paying the sunlight tax
+//  The paywall for paying the sunlight tax (macOS)
 //
 
 import SwiftUI
@@ -14,112 +14,110 @@ struct TaxPaywallView: View {
     @State private var showSuccess = false
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color(hex: "#FFCDD2").opacity(0.3).ignoresSafeArea()
+        VStack {
+            // Header
+            VStack(spacing: 16) {
+                Text("💸")
+                    .font(.system(size: 80))
                 
-                VStack(spacing: 24) {
-                    // Header
-                    VStack(spacing: 16) {
-                        Text("💸")
-                            .font(.system(size: 80))
-                        
-                        Text("SUNLIGHT TAX DUE")
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .foregroundColor(.red)
-                        
-                        Text("Your cave-dwelling behavior has consequences")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    
-                    // Tax breakdown
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Tax Breakdown")
-                            .font(.headline)
-                        
-                        HStack {
-                            Text("Time in Darkness")
-                            Spacer()
-                            Text(taxManager.formattedTimeInDarkness)
-                                .fontWeight(.semibold)
-                        }
-                        
-                        HStack {
-                            Text("Brightness Penalty")
-                            Spacer()
-                            Text("-50%")
-                                .fontWeight(.semibold)
-                                .foregroundColor(.red)
-                        }
-                        
-                        Divider()
-                        
-                        HStack {
-                            Text("Tax Amount")
-                                .font(.headline)
-                            Spacer()
-                            Text("$0.99")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.red)
-                        }
-                    }
-                    .padding()
-                    .background(Color.white)
-                    .cornerRadius(16)
-                    
-                    // Unlock benefits
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("What You Get")
-                            .font(.headline)
-                        
-                        BenefitRow(icon: "☀️", text: "Full brightness restored (1 hour)")
-                        BenefitRow(icon: "🎮", text: "Continue gaming in the dark")
-                        BenefitRow(icon: "😴", text: "Maintain your cave lifestyle")
-                    }
-                    .padding()
-                    .background(Color.white)
-                    .cornerRadius(16)
-                    
-                    Spacer()
-                    
-                    // Pay button
-                    Button(action: payTax) {
-                        if isProcessing {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        } else {
-                            HStack {
-                                Image(systemName: "creditcard.fill")
-                                Text("Pay $0.99 Tax")
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(isProcessing ? Color.gray : Color.red)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-                    .disabled(isProcessing)
-                    
-                    // Alternative
-                    Button("Go Outside Instead (Free)") {
-                        dismiss()
-                    }
+                Text("SUNLIGHT TAX DUE")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(.red)
+                
+                Text("Your cave-dwelling behavior has consequences")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                }
-                .padding()
+                    .multilineTextAlignment(.center)
             }
-            .navigationBarItems(trailing: Button("Close") { dismiss() })
-            .overlay {
-                if showSuccess {
-                    SuccessOverlay()
+            
+            Spacer()
+            
+            // Tax breakdown
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Tax Breakdown")
+                    .font(.headline)
+                
+                HStack {
+                    Text("Time in Darkness")
+                    Spacer()
+                    Text(taxManager.formattedTimeInDarkness)
+                        .fontWeight(.semibold)
                 }
+                
+                HStack {
+                    Text("Brightness Penalty")
+                    Spacer()
+                    Text("-50%")
+                        .fontWeight(.semibold)
+                        .foregroundColor(.red)
+                }
+                
+                Divider()
+                
+                HStack {
+                    Text("Tax Amount")
+                        .font(.headline)
+                    Spacer()
+                    Text("$0.99")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.red)
+                }
+            }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(16)
+            
+            // Unlock benefits
+            VStack(alignment: .leading, spacing: 12) {
+                Text("What You Get")
+                    .font(.headline)
+                
+                BenefitRow(icon: "☀️", text: "Full brightness restored (1 hour)")
+                BenefitRow(icon: "🎮", text: "Continue coding in the dark")
+                BenefitRow(icon: "😴", text: "Maintain your cave lifestyle")
+            }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(16)
+            
+            Spacer()
+            
+            // Pay button
+            Button(action: payTax) {
+                if isProcessing {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                } else {
+                    HStack {
+                        Image(systemName: "creditcard.fill")
+                        Text("Pay $0.99 Tax")
+                            .fontWeight(.semibold)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(isProcessing ? Color.gray : Color.red)
+            .foregroundColor(.white)
+            .cornerRadius(12)
+            .disabled(isProcessing)
+            .buttonStyle(.plain)
+            
+            // Alternative
+            Button("Go Outside Instead (Free)") {
+                dismiss()
+            }
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+            .buttonStyle(.plain)
+        }
+        .padding()
+        .frame(width: 400, height: 500)
+        .overlay {
+            if showSuccess {
+                SuccessOverlay()
             }
         }
     }
@@ -159,7 +157,7 @@ struct BenefitRow: View {
 struct SuccessOverlay: View {
     var body: some View {
         ZStack {
-            Color.black.opacity(0.5).ignoresSafeArea()
+            Color.black.opacity(0.5)
             
             VStack(spacing: 16) {
                 Text("✅")

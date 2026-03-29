@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  SunnyZ
 //
-//  Main UI for the Sunlight Tax experience
+//  Main UI for the Sunlight Tax experience (macOS)
 //
 
 import SwiftUI
@@ -52,7 +52,9 @@ struct ContentView: View {
             .sheet(isPresented: $showingPremium) {
                 PremiumSubscriptionView(taxManager: taxManager)
             }
+            .frame(minWidth: 600, minHeight: 700)
         }
+        .navigationViewStyle(.automatic)
     }
     
     // MARK: - Background
@@ -236,7 +238,7 @@ struct ContentView: View {
             
             if taxManager.taxStatus == .taxed {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Your screen brightness is currently limited to 50%")
+                    Text("Your display brightness is currently limited to 50%")
                         .font(.subheadline)
                     
                     HStack {
@@ -282,6 +284,7 @@ struct ContentView: View {
                     .foregroundColor(.white)
                     .cornerRadius(12)
                 }
+                .buttonStyle(.plain)
             }
             
             if !taxManager.hasPremiumSubscription {
@@ -297,6 +300,7 @@ struct ContentView: View {
                     .foregroundColor(.white)
                     .cornerRadius(12)
                 }
+                .buttonStyle(.plain)
             }
         }
     }

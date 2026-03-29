@@ -2,30 +2,46 @@
 //  SunnyZApp.swift
 //  SunnyZ
 //
-//  Main app entry point
+//  Main app entry point (macOS)
 //
 
 import SwiftUI
 
 @main
 struct SunnyZApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .frame(minWidth: 600, minHeight: 700)
+        }
+        .windowStyle(.automatic)
+        .commands {
+            CommandMenu("SunnyZ") {
+                Button("Check Sunlight Status") {
+                    // Trigger status check
+                }
+                .keyboardShortcut("r", modifiers: .command)
+                
+                Divider()
+                
+                Button("Pay Tax") {
+                    // Show paywall
+                }
+                .keyboardShortcut("t", modifiers: .command)
+            }
         }
     }
 }
 
-class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(
-        _ application: UIApplication,
-        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
-    ) -> Bool {
+class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
         // Configure appearance
-        UINavigationBar.appearance().tintColor = .systemOrange
-        
+        NSApp.appearance = NSAppearance(named: .aqua)
+    }
+    
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
     }
 }

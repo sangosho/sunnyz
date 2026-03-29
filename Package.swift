@@ -6,10 +6,10 @@ import PackageDescription
 let package = Package(
     name: "SunnyZ",
     platforms: [
-        .iOS(.v16)
+        .macOS(.v13)
     ],
     products: [
-        .library(
+        .executable(
             name: "SunnyZ",
             targets: ["SunnyZ"]
         ),
@@ -18,10 +18,13 @@ let package = Package(
         // No external dependencies for this hackathon project
     ],
     targets: [
-        .target(
+        .executableTarget(
             name: "SunnyZ",
             dependencies: [],
-            path: "SunnyZ"
+            path: "SunnyZ",
+            swiftSettings: [
+                .unsafeFlags(["-framework", "IOKit"])
+            ]
         ),
         .testTarget(
             name: "SunnyZTests",

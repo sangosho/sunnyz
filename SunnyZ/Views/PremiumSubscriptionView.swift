@@ -2,7 +2,7 @@
 //  PremiumSubscriptionView.swift
 //  SunnyZ
 //
-//  Premium subscription for unlimited cave dwelling
+//  Premium subscription for unlimited cave dwelling (macOS)
 //
 
 import SwiftUI
@@ -14,144 +14,135 @@ struct PremiumSubscriptionView: View {
     @State private var showSuccess = false
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                LinearGradient(
-                    colors: [Color.purple.opacity(0.2), Color.pink.opacity(0.2)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                ).ignoresSafeArea()
+        ScrollView {
+            VStack(spacing: 24) {
+                // Crown header
+                VStack(spacing: 16) {
+                    Text("👑")
+                        .font(.system(size: 80))
+                    
+                    Text("Premium Cave Dweller")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.purple)
+                    
+                    Text("The ultimate late-stage capitalism experience")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
                 
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Crown header
-                        VStack(spacing: 16) {
-                            Text("👑")
-                                .font(.system(size: 80))
-                            
-                            Text("Premium Cave Dweller")
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(.purple)
-                            
-                            Text("The ultimate late-stage capitalism experience")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
+                // Pricing
+                VStack(spacing: 8) {
+                    Text("$4.99")
+                        .font(.system(size: 48, weight: .bold))
+                    Text("per month")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(
+                    LinearGradient(
+                        colors: [.purple, .pink],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .foregroundColor(.white)
+                .cornerRadius(16)
+                
+                // Features
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Premium Features")
+                        .font(.headline)
+                    
+                    PremiumFeatureRow(
+                        icon: "💰",
+                        title: "No Sunlight Tax",
+                        description: "Never pay the $0.99 tax again"
+                    )
+                    
+                    PremiumFeatureRow(
+                        icon: "☀️",
+                        title: "Unlimited Brightness",
+                        description: "Full display brightness 24/7, even in caves"
+                    )
+                    
+                    PremiumFeatureRow(
+                        icon: "📊",
+                        title: "Cave Stats",
+                        description: "Detailed analytics on your indoor time"
+                    )
+                    
+                    PremiumFeatureRow(
+                        icon: "🏆",
+                        title: "Cave Dweller Badge",
+                        description: "Show off your commitment to the indoors"
+                    )
+                    
+                    PremiumFeatureRow(
+                        icon: "💻",
+                        title: "Developer Mode",
+                        description: "Optimized for marathon coding sessions"
+                    )
+                }
+                .padding()
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(16)
+                
+                // Testimonials
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("What Premium Users Say")
+                        .font(.headline)
+                    
+                    TestimonialCard(
+                        quote: "I haven't seen the sun in 3 weeks. Worth every penny!",
+                        author: "@CaveCoder99"
+                    )
+                    
+                    TestimonialCard(
+                        quote: "Finally, a subscription that understands my lifestyle.",
+                        author: "@BasementDeveloper"
+                    )
+                }
+                .padding()
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(16)
+                
+                // Subscribe button
+                Button(action: subscribe) {
+                    if isProcessing {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                    } else {
+                        HStack {
+                            Image(systemName: "crown.fill")
+                            Text("Subscribe $4.99/month")
+                                .fontWeight(.semibold)
                         }
-                        
-                        // Pricing
-                        VStack(spacing: 8) {
-                            Text("$4.99")
-                                .font(.system(size: 48, weight: .bold))
-                            Text("per month")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            LinearGradient(
-                                colors: [.purple, .pink],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .foregroundColor(.white)
-                        .cornerRadius(16)
-                        
-                        // Features
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Premium Features")
-                                .font(.headline)
-                            
-                            PremiumFeatureRow(
-                                icon: "💰",
-                                title: "No Sunlight Tax",
-                                description: "Never pay the $0.99 tax again"
-                            )
-                            
-                            PremiumFeatureRow(
-                                icon: "☀️",
-                                title: "Unlimited Brightness",
-                                description: "Full screen brightness 24/7, even in caves"
-                            )
-                            
-                            PremiumFeatureRow(
-                                icon: "📊",
-                                title: "Cave Stats",
-                                description: "Detailed analytics on your indoor time"
-                            )
-                            
-                            PremiumFeatureRow(
-                                icon: "🏆",
-                                title: "Cave Dweller Badge",
-                                description: "Show off your commitment to the indoors"
-                            )
-                            
-                            PremiumFeatureRow(
-                                icon: "🎮",
-                                title: "Gamer Mode",
-                                description: "Optimized for marathon gaming sessions"
-                            )
-                        }
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(16)
-                        
-                        // Testimonials
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("What Premium Users Say")
-                                .font(.headline)
-                            
-                            TestimonialCard(
-                                quote: "I haven't seen the sun in 3 weeks. Worth every penny!",
-                                author: "@CaveGamer99"
-                            )
-                            
-                            TestimonialCard(
-                                quote: "Finally, a subscription that understands my lifestyle.",
-                                author: "@BasementDweller"
-                            )
-                        }
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(16)
-                        
-                        // Subscribe button
-                        Button(action: subscribe) {
-                            if isProcessing {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                HStack {
-                                    Image(systemName: "crown.fill")
-                                    Text("Subscribe $4.99/month")
-                                        .fontWeight(.semibold)
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(isProcessing ? Color.gray : Color.purple)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                        .disabled(isProcessing)
-                        
-                        // Disclaimer
-                        Text("Subscription auto-renews. Cancel anytime. No refunds for sunlight exposure.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
                     }
-                    .padding()
                 }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(isProcessing ? Color.gray : Color.purple)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+                .disabled(isProcessing)
+                .buttonStyle(.plain)
+                
+                // Disclaimer
+                Text("Subscription auto-renews. Cancel anytime. No refunds for sunlight exposure.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
             }
-            .navigationBarItems(trailing: Button("Close") { dismiss() })
-            .overlay {
-                if showSuccess {
-                    PremiumSuccessOverlay()
-                }
+            .padding()
+        }
+        .frame(width: 500, height: 700)
+        .overlay {
+            if showSuccess {
+                PremiumSuccessOverlay()
             }
         }
     }
@@ -212,7 +203,7 @@ struct TestimonialCard: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color.gray.opacity(0.1))
+        .background(Color.white.opacity(0.5))
         .cornerRadius(8)
     }
 }
@@ -220,7 +211,7 @@ struct TestimonialCard: View {
 struct PremiumSuccessOverlay: View {
     var body: some View {
         ZStack {
-            Color.black.opacity(0.5).ignoresSafeArea()
+            Color.black.opacity(0.5)
             
             VStack(spacing: 16) {
                 Text("👑")

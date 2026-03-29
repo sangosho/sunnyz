@@ -2,12 +2,12 @@
 //  SunlightTaxManager.swift
 //  SunnyZ
 //
-//  Sunlight Tax - The premium subscription for going outside
+//  Sunlight Tax - The premium subscription for going outside (macOS)
 //
 
 import Foundation
-import UIKit
-import CoreMotion
+import AppKit
+import IOKit
 import StoreKit
 import Combine
 
@@ -21,10 +21,11 @@ final class SunlightTaxManager: ObservableObject {
     @Published var currentLux: Double = 0
     @Published var timeInDarkness: TimeInterval = 0
     @Published var taxStatus: TaxStatus = .exempt
-    @Published var brightnessLimit: CGFloat = 1.0
+    @Published var brightnessLimit: Double = 1.0
     @Published var hasPremiumSubscription: Bool = false
     @Published var totalTaxPaid: Double = 0
     @Published var lastSunlightDate: Date?
+    @Published var currentDisplayBrightness: Double = 1.0
     
     // MARK: - Tax Status
     
@@ -51,7 +52,7 @@ final class SunlightTaxManager: ObservableObject {
             switch self {
             case .exempt: return "#4CAF50"
             case .warning: return "#FF9800"
-            case .taxed: return "#F44336"
+            case .taxed: return "F44336"
             case .premium: return "#9C27B0"
             }
         }
@@ -66,24 +67,23 @@ final class SunlightTaxManager: ObservableObject {
     let darknessThreshold: Double = 50
     
     /// Time before tax kicks in (4 hours)
-    let taxThreshold: TimeInterval = 4 * 60 * 60  // 4 hours
+    let taxThreshold: TimeInterval = 4 * 60 * 60
     
     /// Warning threshold (3.5 hours)
     let warningThreshold: TimeInterval = 3.5 * 60 * 60
     
     /// Brightness limit when taxed (50%)
-    let taxedBrightnessLimit: CGFloat = 0.5
+    let taxedBrightnessLimit: Double = 0.5
     
     /// Tax amount per unlock
     let taxAmount: Decimal = 0.99
     
     // MARK: - Private Properties
     
-    private let motionManager = CMMotionManager()
     private var cancellables = Set<AnyCancellable>()
     private var darknessStartTime: Date?
     private var timer: Timer?
-    private var brightnessObserver: NSObjectProtocol?
+    private var displayService: io_object_t = 0
     
     // UserDefaults keys
     private let kTotalTaxPaid = "sunlightTax.totalPaid"
@@ -94,14 +94,14 @@ final class SunlightTaxManager: ObservableObject {
     
     init() {
         loadSavedState()
-        setupBrightnessObserver()
+        setupDisplayConnection()
         startMonitoring()
     }
     
     deinit {
         stopMonitoring()
-        if let observer = brightnessObserver {
-            NotificationCenter.default.removeObserver(observer)
+        if displayService != 0 {
+            IOObjectRelease(displayService)
         }
     }
     
@@ -115,26 +115,22 @@ final class SunlightTaxManager: ObservableObject {
         }
     }
     
-    private func setupBrightnessObserver() {
-        // Monitor system brightness changes
-        brightnessObserver = NotificationCenter.default.addObserver(
-            forName: UIScreen.brightnessDidChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.enforceBrightnessLimit()
-        }
+    private func setupDisplayConnection() {
+        // Get IOKit connection to control display brightness
+        let service = IOServiceGetMatchingService(
+            kIOMainPortDefault,
+            IOServiceMatching("IODisplayConnect")
+        )
+        displayService = service
     }
     
     // MARK: - Monitoring
     
     func startMonitoring() {
-        // Use ambient light sensor via CMMotionManager (indirect approach)
-        // Note: Direct ALS access is private API, so we use a combination of
-        // brightness detection and motion activity
-        
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.updateSunlightStatus()
+            Task { @MainActor in
+                self?.updateSunlightStatus()
+            }
         }
         
         // Initial update
@@ -149,24 +145,17 @@ final class SunlightTaxManager: ObservableObject {
     // MARK: - Sunlight Detection
     
     private func updateSunlightStatus() {
-        // Estimate ambient light based on screen brightness and device orientation
-        // This is a heuristic approach since direct ALS is private
+        // Read ambient light sensor on Mac
+        let lux = readAmbientLightSensor()
+        currentLux = lux
         
-        let screenBrightness = Double(UIScreen.main.brightness)
-        
-        // If user keeps brightness high, they might be compensating for dark environment
-        // If brightness is low, they might be in a dark room
-        
-        // Use a simulated lux estimate based on various factors
-        let estimatedLux = estimateAmbientLux(screenBrightness: screenBrightness)
-        currentLux = estimatedLux
+        // Update current display brightness
+        currentDisplayBrightness = getDisplayBrightness()
         
         // Check if we're in sunlight
-        if estimatedLux >= sunlightThreshold {
-            // Sunlight detected!
+        if lux >= sunlightThreshold {
             handleSunlightDetected()
-        } else if estimatedLux <= darknessThreshold {
-            // Darkness detected
+        } else if lux <= darknessThreshold {
             handleDarknessDetected()
         }
         
@@ -177,26 +166,63 @@ final class SunlightTaxManager: ObservableObject {
         enforceBrightnessLimit()
     }
     
-    private func estimateAmbientLux(screenBrightness: Double) -> Double {
-        // Heuristic: If screen brightness is maxed out, user might be in bright environment
-        // If screen brightness is low, user might be in dark environment
-        // This is a playful approximation for the hackathon
+    private func readAmbientLightSensor() -> Double {
+        // On macOS, we can read the ambient light sensor via IOKit
+        // This is the legitimate way to access ALS on Mac
         
-        let autoBrightnessEnabled = UIScreen.main.isBrightnessManuallySet == false
+        let service = IOServiceGetMatchingService(
+            kIOMainPortDefault,
+            IOServiceMatching("AppleBacklightDisplay")
+        )
         
-        // Base estimate on current brightness setting
-        var estimatedLux = screenBrightness * 500  // 0-1 -> 0-500 lux
-        
-        // Adjust for auto-brightness behavior
-        if autoBrightnessEnabled {
-            // If auto-brightness is on, the system has already adjusted
-            // Higher system brightness = brighter environment
-            estimatedLux = screenBrightness * 1000
+        guard service != 0 else {
+            // Fallback: estimate based on time of day if no sensor
+            return estimateLuxFromContext()
         }
         
-        // Add some "randomness" to simulate sensor noise
+        // Try to read the sensor value
+        var luxValue: Double = 0
+        
+        if let dict = IORegistryEntryCreateCFProperties(
+            service,
+            nil,
+            kCFAllocatorDefault,
+            0
+        ).takeRetainedValue() as? [String: Any] {
+            
+            // Look for ambient light sensor data
+            if let alsData = dict["ALSAmbientLightSensor"] as? [String: Any],
+               let lux = alsData["lux"] as? Double {
+                luxValue = lux
+            } else if let displayParams = dict["DisplayParameters"] as? [String: Any],
+                      let brightness = displayParams["Brightness"] as? Double {
+                // Estimate lux from brightness setting
+                luxValue = brightness * 500
+            }
+        }
+        
+        IOObjectRelease(service)
+        
+        // If we couldn't read sensor, use context estimation
+        if luxValue == 0 {
+            luxValue = estimateLuxFromContext()
+        }
+        
+        return luxValue
+    }
+    
+    private func estimateLuxFromContext() -> Double {
+        // Fallback estimation based on time of day
+        let hour = Calendar.current.component(.hour, from: Date())
+        
+        // Rough daylight hours estimation
+        let isDaytime = hour >= 7 && hour < 19
+        
+        // Add some randomness to simulate sensor readings
+        let baseLux = isDaytime ? 200.0 : 10.0
         let noise = Double.random(in: -20...20)
-        return max(0, estimatedLux + noise)
+        
+        return max(0, baseLux + noise)
     }
     
     private func handleSunlightDetected() {
@@ -241,12 +267,39 @@ final class SunlightTaxManager: ObservableObject {
         }
     }
     
+    // MARK: - Display Brightness Control
+    
+    private func getDisplayBrightness() -> Double {
+        guard displayService != 0 else { return 1.0 }
+        
+        var brightness: Float = 1.0
+        IODisplayGetFloatParameter(
+            displayService,
+            kIODisplayBrightnessKey as CFString,
+            &brightness
+        )
+        
+        return Double(brightness)
+    }
+    
+    private func setDisplayBrightness(_ value: Double) {
+        guard displayService != 0 else { return }
+        
+        let clampedValue = max(0, min(1, Float(value)))
+        
+        IODisplaySetFloatParameter(
+            displayService,
+            kIODisplayBrightnessKey as CFString,
+            clampedValue
+        )
+    }
+    
     private func enforceBrightnessLimit() {
         guard taxStatus == .taxed else { return }
         
-        let currentBrightness = UIScreen.main.brightness
+        let currentBrightness = getDisplayBrightness()
         if currentBrightness > brightnessLimit {
-            UIScreen.main.brightness = brightnessLimit
+            setDisplayBrightness(brightnessLimit)
         }
     }
     
@@ -254,16 +307,13 @@ final class SunlightTaxManager: ObservableObject {
     
     /// Pay the sunlight tax to unlock brightness temporarily
     func payTax() async throws {
-        // For hackathon: simulate the purchase
-        // In production, use StoreKit 2:
-        // let product = try await Product.products(for: ["sunlight.tax.unlock"])
-        // let result = try await product.purchase()
-        
-        // Simulate purchase delay
+        // Simulate the purchase
         try await Task.sleep(nanoseconds: 1_000_000_000)
         
         // Unlock brightness for 1 hour
         brightnessLimit = 1.0
+        setDisplayBrightness(1.0)
+        
         totalTaxPaid += Double(truncating: taxAmount as NSNumber)
         UserDefaults.standard.set(totalTaxPaid, forKey: kTotalTaxPaid)
         
@@ -281,6 +331,7 @@ final class SunlightTaxManager: ObservableObject {
         hasPremiumSubscription = true
         UserDefaults.standard.set(true, forKey: kHasPremium)
         brightnessLimit = 1.0
+        setDisplayBrightness(1.0)
         taxStatus = .premium
     }
     
@@ -306,15 +357,5 @@ final class SunlightTaxManager: ObservableObject {
     var formattedTimeUntilTax: String {
         let minutes = Int(timeUntilTax) / 60
         return "\(minutes) min"
-    }
-}
-
-// MARK: - UIScreen Extension
-
-extension UIScreen {
-    var isBrightnessManuallySet: Bool {
-        // Check if auto-brightness is disabled
-        // This is a heuristic - iOS doesn't expose this directly
-        return false
     }
 }
