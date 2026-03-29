@@ -523,6 +523,108 @@ final class NotificationManager: NSObject, ObservableObject {
             break
         }
     }
+    
+    // MARK: - Test Notifications
+    
+    /// Sends a test 30-minute warning style notification immediately (bypasses state checks)
+    public func sendTestWarningNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "🧪 Test: Sunlight Tax Warning"
+        content.body = warning30MinMessages.randomElement() ?? warning30MinMessages[0]
+        content.sound = .default
+        content.badge = 1
+        
+        let request = UNNotificationRequest(
+            identifier: NotificationID.warning30Min + ".test",
+            content: content,
+            trigger: nil // Immediate
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("[SunnyZ] Failed to send test warning notification: \(error)")
+            } else {
+                print("[SunnyZ] Sent test warning notification")
+            }
+        }
+    }
+    
+    /// Sends a test tax applied style notification immediately (bypasses state checks)
+    public func sendTestTaxAppliedNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "🧪 Test: Sunlight Tax Applied!"
+        content.body = taxAppliedMessages.randomElement() ?? taxAppliedMessages[0]
+        content.sound = .default
+        content.badge = 1
+        content.categoryIdentifier = NotificationID.taxApplied
+        
+        let request = UNNotificationRequest(
+            identifier: NotificationID.taxApplied + ".test",
+            content: content,
+            trigger: nil // Immediate
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("[SunnyZ] Failed to send test tax applied notification: \(error)")
+            } else {
+                print("[SunnyZ] Sent test tax applied notification")
+            }
+        }
+    }
+    
+    /// Sends a test daily summary style notification immediately (bypasses state checks)
+    public func sendTestDailySummary() {
+        let content = createDailySummaryContent()
+        content.title = "🧪 Test: Daily Cave Report"
+        
+        let request = UNNotificationRequest(
+            identifier: NotificationID.dailySummary + ".test",
+            content: content,
+            trigger: nil // Immediate
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("[SunnyZ] Failed to send test daily summary: \(error)")
+            } else {
+                print("[SunnyZ] Sent test daily summary notification")
+            }
+        }
+    }
+    
+    /// Sends a test snarky reminder notification immediately using SnarkManager
+    public func sendTestSnarkyReminder() {
+        let content = UNMutableNotificationContent()
+        content.title = "🧪 Test: Snarky Reminder"
+        content.body = SnarkManager.shared.getSnarkyMessage()
+        content.sound = .default
+        content.badge = 1
+        
+        // Add snark level indicator from SnarkManager
+        switch SnarkManager.shared.snarkLevel {
+        case .mild:
+            content.subtitle = "Gentle reminder"
+        case .medium:
+            content.subtitle = "You should probably listen..."
+        case .savage:
+            content.subtitle = "No holding back"
+        }
+        
+        let request = UNNotificationRequest(
+            identifier: "sunnyz.snark.test.\(UUID().uuidString)",
+            content: content,
+            trigger: nil // Immediate
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("[SunnyZ] Failed to send test snarky reminder: \(error)")
+            } else {
+                print("[SunnyZ] Sent test snarky reminder notification")
+            }
+        }
+    }
 }
 
 // MARK: - UNUserNotificationCenterDelegate

@@ -50,6 +50,10 @@ final class LuxSensorManager: ObservableObject {
     @Published var isCalibrating: Bool = false
     @Published var hasALSSensor: Bool = false
     
+    // MARK: - Debug
+    @Published var debugOverrideLux: Double?
+    @Published var debugOverrideEnabled: Bool = false
+    
     // MARK: - Private Properties
     private var alsService: io_object_t = 0
     private var lmuService: io_object_t = 0
@@ -124,6 +128,13 @@ final class LuxSensorManager: ObservableObject {
     
     /// Reads the current lux value from the ALS or estimates from context
     func readLux() -> Double {
+        // Check for debug override
+        if debugOverrideEnabled, let overrideLux = debugOverrideLux {
+            accuracy = .accurate
+            currentLux = overrideLux
+            return overrideLux
+        }
+        
         let lux: Double
         
         if hasALSSensor {
@@ -360,5 +371,23 @@ final class LuxSensorManager: ObservableObject {
         } else {
             return "No hardware ALS detected"
         }
+    }
+    
+    // MARK: - Debug
+    
+    /// Sets the debug override lux value
+    func setDebugOverride(_ lux: Double?) {
+        debugOverrideLux = lux
+    }
+    
+    /// Clears the debug override
+    func clearDebugOverride() {
+        debugOverrideLux = nil
+        debugOverrideEnabled = false
+    }
+    
+    /// Enables or disables the debug override
+    func setDebugOverrideEnabled(_ enabled: Bool) {
+        debugOverrideEnabled = enabled
     }
 }

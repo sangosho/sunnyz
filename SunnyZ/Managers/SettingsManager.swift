@@ -81,6 +81,12 @@ final class SettingsManager: ObservableObject {
         }
     }
     
+    // MARK: Debug Settings
+    // NEW: Debug mode property for development/testing features
+    @Published var debugModeEnabled: Bool {
+        didSet { save(.debugModeEnabled, value: debugModeEnabled) }
+    }
+    
     // MARK: - Enums
     
     enum TaxThreshold: Int, CaseIterable, Identifiable {
@@ -121,6 +127,8 @@ final class SettingsManager: ObservableObject {
         case sunlightLuxThreshold = "sunnyz.settings.lux.sunlightThreshold"
         case darknessLuxThreshold = "sunnyz.settings.lux.darknessThreshold"
         case launchAtLogin = "sunnyz.settings.general.launchAtLogin"
+        // NEW: Debug mode key for development/testing features
+        case debugModeEnabled = "sunnyz.settings.debug.enabled"
     }
     
     // MARK: - Stats Keys (for reset functionality)
@@ -168,6 +176,9 @@ final class SettingsManager: ObservableObject {
         
         // Load general settings
         self.launchAtLogin = defaults.object(forKey: Key.launchAtLogin.rawValue) as? Bool ?? false
+        
+        // NEW: Load debug settings (default to false for production)
+        self.debugModeEnabled = defaults.object(forKey: Key.debugModeEnabled.rawValue) as? Bool ?? false
         
         // Sync launch at login state with system
         updateLaunchAtLogin()
@@ -253,6 +264,13 @@ final class SettingsManager: ObservableObject {
     
     var formattedTaxThreshold: String {
         taxThresholdHours.displayName
+    }
+    
+    // MARK: - Debug Helpers
+    
+    // NEW: Helper method to toggle debug mode on/off
+    func toggleDebugMode() {
+        debugModeEnabled.toggle()
     }
 }
 

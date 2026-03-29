@@ -25,8 +25,13 @@ final class SunlightTaxManager: ObservableObject {
     @Published var lastSunlightDate: Date?
     @Published var currentDisplayBrightness: Double = 1.0
     @Published var luxAccuracy: LuxAccuracy = .estimated
+    @Published var timeAcceleration: Double = 1.0
     
     // MARK: - Computed Settings
+    
+    var debugModeEnabled: Bool {
+        settings.debugModeEnabled
+    }
     
     var taxThreshold: TimeInterval {
         settings.taxThresholdInterval
@@ -186,7 +191,8 @@ final class SunlightTaxManager: ObservableObject {
     // MARK: - Monitoring
     
     func startMonitoring() {
-        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+        let interval = debugModeEnabled ? (5.0 / timeAcceleration) : 5.0
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateSunlightStatus()
             }
@@ -413,5 +419,46 @@ final class SunlightTaxManager: ObservableObject {
         releaseDisplayService()
         setupDisplayConnection()
         print("[SunnyZ] Display connection refreshed")
+    }
+    
+    // MARK: - Debug
+    
+    /// Forces the tax status to a specific value (debug only)
+    func forceTaxStatus(_ status: TaxStatus) {
+        guard debugModeEnabled else { return }
+        taxStatus = status
+        if status == .taxed {
+            brightnessLimit = taxedBrightnessLimit
+        } else {
+            brightnessLimit = 1.0
+        }
+    }
+    
+    /// Forces the time in darkness to a specific duration (debug only)
+    func forceTimeInDarkness(_ duration: TimeInterval) {
+        guard debugModeEnabled else { return }
+        timeInDarkness = duration
+        darknessStartTime = Date().addingTimeInterval(-duration)
+        UserDefaults.standard.set(darknessStartTime, forKey: kDarknessStartTime)
+        updateTaxStatus()
+    }
+    
+    /// Resets the darkness timer (debug only)
+    func resetDarknessTimer() {
+        guard debugModeEnabled else { return }
+        darknessStartTime = nil
+        timeInDarkness = 0
+        UserDefaults.standard.removeObject(forKey: kDarknessStartTime)
+        brightnessLimit = 1.0
+        updateTaxStatus()
+    }
+    
+    /// Sets the time acceleration multiplier (debug only)
+    func setTimeAcceleration(_ multiplier: Double) {
+        guard debugModeEnabled else { return }
+        timeAcceleration = max(1.0, multiplier)
+        // Restart timer with new interval
+        stopMonitoring()
+        startMonitoring()
     }
 }

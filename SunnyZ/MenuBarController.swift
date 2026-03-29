@@ -99,6 +99,14 @@ final class MenuBarController: NSObject, ObservableObject {
             }
             .store(in: &cancellables)
 
+        // Subscribe to debug mode changes to update menu icon
+        SettingsManager.shared.$debugModeEnabled
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateMenuIcon(status: self?.taxManager.taxStatus ?? .clear)
+            }
+            .store(in: &cancellables)
+
         // Listen for show achievements notification
         NotificationCenter.default.publisher(for: .showAchievements)
             .receive(on: DispatchQueue.main)
@@ -230,12 +238,23 @@ final class MenuBarController: NSObject, ObservableObject {
     private func updateMenuIcon(status: SunlightTaxManager.TaxStatus) {
         guard let button = statusItem.button else { return }
         
+        let isDebugMode = SettingsManager.shared.debugModeEnabled
+        
         button.image = NSImage(
             systemSymbolName: status.menuIcon,
-            accessibilityDescription: "SunnyZ"
+            accessibilityDescription: isDebugMode ? "SunnyZ (DEBUG)" : "SunnyZ"
         )
         button.image?.size = NSSize(width: 18, height: 18)
         button.contentTintColor = status.color
+        
+        // Update tooltip with debug indicator if enabled
+        if isDebugMode {
+            button.toolTip = "🔧 SunnyZ: Track your cave-dwelling time (⌘, for settings) [DEBUG MODE]"
+            button.title = "🔧"
+        } else {
+            button.toolTip = "SunnyZ: Track your cave-dwelling time (⌘, for settings)"
+            button.title = ""
+        }
     }
     
     @objc private func togglePopover() {

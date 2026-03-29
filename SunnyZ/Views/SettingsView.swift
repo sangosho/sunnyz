@@ -17,6 +17,11 @@ struct SettingsView: View {
     @State private var showingResetConfirmation = false
     @State private var showingCalibrationSheet = false
     
+    // MARK: - Debug Mode State
+    @State private var showingDebugPanel = false
+    @State private var versionClickCount = 0
+    @State private var versionClickTimer: Timer?
+    
     enum SettingsTab: String, CaseIterable, Identifiable {
         case notifications = "Notifications"
         case taxSettings = "Tax Settings"
@@ -53,7 +58,14 @@ struct SettingsView: View {
                     case .achievements:
                         AchievementsTabWrapper()
                     case .about:
-                        AboutTab(taxManager: taxManager, showingResetConfirmation: $showingResetConfirmation)
+                        AboutTab(
+                            taxManager: taxManager,
+                            showingResetConfirmation: $showingResetConfirmation,
+                            onVersionTap: handleVersionTap,
+                            debugModeEnabled: settings.debugModeEnabled,
+                            onDebugModeChange: { settings.debugModeEnabled = $0 },
+                            onOpenDebugPanel: { showingDebugPanel = true }
+                        )
                     }
                 }
                 .padding()
@@ -67,6 +79,34 @@ struct SettingsView: View {
             }
         } message: {
             Text("This will clear all your tax payment history, darkness time, and achievements. This action cannot be undone.")
+        }
+        .sheet(isPresented: $showingDebugPanel) {
+            DebugPanelView()
+        }
+    }
+    
+    // MARK: - Easter Egg Handler
+    
+    private func handleVersionTap() {
+        versionClickCount += 1
+        
+        // Reset timer if already running
+        versionClickTimer?.invalidate()
+        
+        // Start new timer to reset count after 3 seconds
+        versionClickTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+            versionClickCount = 0
+        }
+        
+        // Enable debug mode after 5 clicks
+        if versionClickCount >= 5 {
+            versionClickTimer?.invalidate()
+            versionClickCount = 0
+            settings.debugModeEnabled = true
+            
+            // Provide haptic feedback
+            let generator = NSHapticFeedbackManager.defaultPerformer
+            generator.perform(.generic, performanceTime: .default)
         }
     }
     
@@ -304,7 +344,7 @@ struct NotificationsTab: View {
                         Text("Daily cave-dwelling report with stats and achievements")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                            .padding(.leading, 20)
+                        .padding(.leading, 20)
                     }
                 }
             }
@@ -477,6 +517,12 @@ struct AboutTab: View {
     @StateObject private var settings = SettingsManager.shared
     @Binding var showingResetConfirmation: Bool
     
+    // MARK: - Debug Callbacks & State
+    let onVersionTap: () -> Void
+    let debugModeEnabled: Bool
+    let onDebugModeChange: (Bool) -> Void
+    let onOpenDebugPanel: () -> Void
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             // App Info
@@ -500,9 +546,14 @@ struct AboutTab: View {
                         Text("SunnyZ")
                             .font(.title2)
                             .fontWeight(.bold)
-                        Text("Version 1.0.0 (Sprint 2)")
+                        Text("Version 1.0.0 (Build 1.0.0)")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .onTapGesture {
+                                onVersionTap()
+                            }
+                            .contentShape(Rectangle())
+                            .help("Tap 5 times to enable debug mode")
                     }
                 }
                 
@@ -634,6 +685,44 @@ struct AboutTab: View {
                 Text("Clear all tax history and achievements. Cannot be undone.")
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
+            
+            // MARK: - Developer Section (Debug Mode)
+            if debugModeEnabled {
+                Divider()
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "ladybug.fill")
+                            .foregroundColor(.orange)
+                            .frame(width: 24)
+                        Text("Developer")
+                            .font(.headline)
+                    }
+                    
+                    Toggle("Debug Mode", isOn: Binding(
+                        get: { debugModeEnabled },
+                        set: { onDebugModeChange($0) }
+                    ))
+                    
+                    Button(action: { onOpenDebugPanel() }) {
+                        HStack {
+                            Image(systemName: "wrench.and.screwdriver")
+                            Text("Open Debug Panel")
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.orange)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Build: 1.0.0")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("Version: 1.0.0 (Sprint 2)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
         }
     }
