@@ -107,9 +107,16 @@ struct TaxPaywallView: View {
             .font(.subheadline)
             .foregroundColor(.secondary)
             .buttonStyle(.plain)
+            
+            // Subtle debug mode indicator (visible but not distracting)
+            if taxManager.debugModeEnabled {
+                Text("🧪 Test Mode — No real charges")
+                    .font(.caption2)
+                    .foregroundColor(.orange.opacity(0.7))
+            }
         }
         .padding()
-        .frame(width: 320, height: 420)
+        .frame(width: 320, height: taxManager.debugModeEnabled ? 450 : 420)
     }
     
     private func payTax() {

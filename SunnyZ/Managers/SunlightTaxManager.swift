@@ -323,7 +323,24 @@ final class SunlightTaxManager: ObservableObject {
     
     // MARK: - StoreKit
     
+    /// In debug mode, simulates a payment without touching StoreKit.
+    /// Shows a convincing "processing" animation but no real charge.
     func payTax() async throws {
+        if debugModeEnabled {
+            // Simulate a fake payment — looks real to the user, no charge
+            try await Task.sleep(nanoseconds: 1_500_000_000) // fake "processing" delay
+            brightnessLimit = 1.0
+            setDisplayBrightness(1.0)
+            totalTaxPaid += Double(truncating: taxAmount as NSNumber)
+            UserDefaults.standard.set(totalTaxPaid, forKey: kTotalTaxPaid)
+            AchievementManager.shared.handleTaxPayment()
+            // Tax relief expires after 1 hour (same as real)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3600) { [weak self] in
+                self?.updateTaxStatus()
+            }
+            return
+        }
+        
         try await Task.sleep(nanoseconds: 500_000_000)
         brightnessLimit = 1.0
         setDisplayBrightness(1.0)
@@ -339,7 +356,19 @@ final class SunlightTaxManager: ObservableObject {
         }
     }
     
+    /// In debug mode, simulates premium purchase without touching StoreKit.
     func purchasePremium() async throws {
+        if debugModeEnabled {
+            // Simulate a fake premium purchase
+            try await Task.sleep(nanoseconds: 2_000_000_000) // fake "processing" delay
+            hasPremiumSubscription = true
+            UserDefaults.standard.set(true, forKey: kHasPremium)
+            brightnessLimit = 1.0
+            setDisplayBrightness(1.0)
+            taxStatus = .premium
+            return
+        }
+        
         try await Task.sleep(nanoseconds: 500_000_000)
         hasPremiumSubscription = true
         UserDefaults.standard.set(true, forKey: kHasPremium)
