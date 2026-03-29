@@ -9,7 +9,6 @@ import SwiftUI
 
 struct TaxPaywallView: View {
     @ObservedObject var taxManager: SunlightTaxManager
-    @Environment(\.dismiss) private var dismiss
     @State private var isProcessing = false
     
     var body: some View {

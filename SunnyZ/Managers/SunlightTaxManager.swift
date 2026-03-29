@@ -117,7 +117,10 @@ final class SunlightTaxManager: ObservableObject {
     }
     
     deinit {
-        // Can't call actor-isolated methods from deinit
+        // Release IOKit display service (nonisolated, safe for deinit)
+        if displayService != 0 {
+            IOObjectRelease(displayService)
+        }
     }
 
     private func releaseDisplayService() {

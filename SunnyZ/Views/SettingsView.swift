@@ -12,7 +12,6 @@ struct SettingsView: View {
     @StateObject private var notificationManager = NotificationManager.shared
     @ObservedObject var taxManager: SunlightTaxManager
     
-    @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: SettingsTab = .notifications
     @State private var showingResetConfirmation = false
     @State private var showingCalibrationSheet = false
@@ -83,6 +82,15 @@ struct SettingsView: View {
         .sheet(isPresented: $showingDebugPanel) {
             DebugPanelView()
         }
+        .onDisappear {
+            invalidateTimers()
+        }
+    }
+    
+    // MARK: - Window Management
+    
+    private func dismissWindow() {
+        NSApplication.shared.keyWindow?.close()
     }
     
     // MARK: - Easter Egg Handler
@@ -110,6 +118,13 @@ struct SettingsView: View {
         }
     }
     
+    // MARK: - Cleanup
+    
+    private func invalidateTimers() {
+        versionClickTimer?.invalidate()
+        versionClickTimer = nil
+    }
+    
     private var toolbar: some View {
         HStack(spacing: 0) {
             // Tab buttons
@@ -127,7 +142,7 @@ struct SettingsView: View {
             
             // Done button
             Button("Done") {
-                dismiss()
+                dismissWindow()
             }
             .keyboardShortcut(.defaultAction)
         }
@@ -157,6 +172,7 @@ struct TabButton: View {
             .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
             .foregroundColor(isSelected ? .accentColor : .secondary)
             .cornerRadius(6)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

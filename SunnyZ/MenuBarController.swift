@@ -313,6 +313,7 @@ final class MenuBarController: NSObject, ObservableObject {
         paywallWindow.contentView = NSHostingView(
             rootView: TaxPaywallView(taxManager: taxManager)
         )
+        NSApp.activate(ignoringOtherApps: true)
         paywallWindow.makeKeyAndOrderFront(nil)
     }
     
@@ -328,6 +329,7 @@ final class MenuBarController: NSObject, ObservableObject {
         premiumWindow.contentView = NSHostingView(
             rootView: PremiumSubscriptionView(taxManager: taxManager)
         )
+        NSApp.activate(ignoringOtherApps: true)
         premiumWindow.makeKeyAndOrderFront(nil)
     }
     
@@ -343,6 +345,7 @@ final class MenuBarController: NSObject, ObservableObject {
         settingsWindow.contentView = NSHostingView(
             rootView: SettingsView(taxManager: taxManager)
         )
+        NSApp.activate(ignoringOtherApps: true)
         settingsWindow.makeKeyAndOrderFront(nil)
     }
 
@@ -358,6 +361,7 @@ final class MenuBarController: NSObject, ObservableObject {
         achievementsWindow.contentView = NSHostingView(
             rootView: AchievementsView()
         )
+        NSApp.activate(ignoringOtherApps: true)
         achievementsWindow.makeKeyAndOrderFront(nil)
     }
 
