@@ -27,9 +27,10 @@ struct ConfettiView: View {
     }
 
     private func startConfetti() {
+        let screenWidth = NSScreen.main?.frame.width ?? 800
         particles = (0..<particleCount).map { _ in
             ConfettiParticle(
-                x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
+                x: CGFloat.random(in: 0...screenWidth),
                 y: -CGFloat.random(in: 0...200),
                 color: randomColor(),
                 size: CGFloat.random(in: 5...15),
@@ -86,10 +87,11 @@ struct ConfettiParticleView: View {
             .offset(x: particle.wobble * sin(wobbleOffset))
             .offset(y: y)
             .onAppear {
+                let screenHeight = NSScreen.main?.frame.height ?? 600
                 withAnimation(
                     .linear(duration: 3.0)
                 ) {
-                    y = UIScreen.main.bounds.height + 100
+                    y = screenHeight + 100
                     rotation += 720
                     wobbleOffset += 20
                 }

@@ -500,7 +500,7 @@ struct AboutTab: View {
                         Text("SunnyZ")
                             .font(.title2)
                             .fontWeight(.bold)
-                        Text("Version 1.0.0 (Sprint 2)")
+                        Text("Version 1.0.0")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
