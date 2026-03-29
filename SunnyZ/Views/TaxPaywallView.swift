@@ -2,7 +2,7 @@
 //  TaxPaywallView.swift
 //  SunnyZ
 //
-//  The paywall for paying the sunlight tax (macOS)
+//  Tax paywall window content
 //
 
 import SwiftUI
@@ -11,17 +11,16 @@ struct TaxPaywallView: View {
     @ObservedObject var taxManager: SunlightTaxManager
     @Environment(\.dismiss) private var dismiss
     @State private var isProcessing = false
-    @State private var showSuccess = false
     
     var body: some View {
-        VStack {
+        VStack(spacing: 20) {
             // Header
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 Text("💸")
-                    .font(.system(size: 80))
+                    .font(.system(size: 64))
                 
                 Text("SUNLIGHT TAX DUE")
-                    .font(.title)
+                    .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.red)
                 
@@ -34,12 +33,10 @@ struct TaxPaywallView: View {
             Spacer()
             
             // Tax breakdown
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Tax Breakdown")
-                    .font(.headline)
-                
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("Time in Darkness")
+                        .foregroundColor(.secondary)
                     Spacer()
                     Text(taxManager.formattedTimeInDarkness)
                         .fontWeight(.semibold)
@@ -47,6 +44,7 @@ struct TaxPaywallView: View {
                 
                 HStack {
                     Text("Brightness Penalty")
+                        .foregroundColor(.secondary)
                     Spacer()
                     Text("-50%")
                         .fontWeight(.semibold)
@@ -60,27 +58,25 @@ struct TaxPaywallView: View {
                         .font(.headline)
                     Spacer()
                     Text("$0.99")
-                        .font(.title2)
+                        .font(.title3)
                         .fontWeight(.bold)
                         .foregroundColor(.red)
                 }
             }
             .padding()
             .background(Color.gray.opacity(0.1))
-            .cornerRadius(16)
+            .cornerRadius(12)
             
-            // Unlock benefits
-            VStack(alignment: .leading, spacing: 12) {
+            // Benefits
+            VStack(alignment: .leading, spacing: 8) {
                 Text("What You Get")
-                    .font(.headline)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
                 
                 BenefitRow(icon: "☀️", text: "Full brightness restored (1 hour)")
-                BenefitRow(icon: "🎮", text: "Continue coding in the dark")
+                BenefitRow(icon: "💻", text: "Continue coding in the dark")
                 BenefitRow(icon: "😴", text: "Maintain your cave lifestyle")
             }
-            .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(16)
             
             Spacer()
             
@@ -101,25 +97,19 @@ struct TaxPaywallView: View {
             .padding()
             .background(isProcessing ? Color.gray : Color.red)
             .foregroundColor(.white)
-            .cornerRadius(12)
+            .cornerRadius(10)
             .disabled(isProcessing)
             .buttonStyle(.plain)
             
-            // Alternative
             Button("Go Outside Instead (Free)") {
-                dismiss()
+                dismissWindow()
             }
             .font(.subheadline)
             .foregroundColor(.secondary)
             .buttonStyle(.plain)
         }
         .padding()
-        .frame(width: 400, height: 500)
-        .overlay {
-            if showSuccess {
-                SuccessOverlay()
-            }
-        }
+        .frame(width: 320, height: 420)
     }
     
     private func payTax() {
@@ -130,13 +120,21 @@ struct TaxPaywallView: View {
             
             await MainActor.run {
                 isProcessing = false
-                showSuccess = true
+                dismissWindow()
                 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    dismiss()
-                }
+                // Show success alert
+                let alert = NSAlert()
+                alert.messageText = "Tax Paid! ✅"
+                alert.informativeText = "Brightness restored for 1 hour."
+                alert.alertStyle = .informational
+                alert.addButton(withTitle: "Great")
+                alert.runModal()
             }
         }
+    }
+    
+    private func dismissWindow() {
+        NSApplication.shared.keyWindow?.close()
     }
 }
 
@@ -145,33 +143,11 @@ struct BenefitRow: View {
     let text: String
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             Text(icon)
             Text(text)
                 .font(.subheadline)
             Spacer()
-        }
-    }
-}
-
-struct SuccessOverlay: View {
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.5)
-            
-            VStack(spacing: 16) {
-                Text("✅")
-                    .font(.system(size: 60))
-                Text("Tax Paid!")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                Text("Brightness restored for 1 hour")
-                    .foregroundColor(.white.opacity(0.8))
-            }
-            .padding(32)
-            .background(Color.green)
-            .cornerRadius(16)
         }
     }
 }

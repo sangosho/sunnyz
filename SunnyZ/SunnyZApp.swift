@@ -2,7 +2,7 @@
 //  SunnyZApp.swift
 //  SunnyZ
 //
-//  Main app entry point (macOS)
+//  Menu bar app entry point
 //
 
 import SwiftUI
@@ -12,36 +12,37 @@ struct SunnyZApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .frame(minWidth: 600, minHeight: 700)
-        }
-        .windowStyle(.automatic)
-        .commands {
-            CommandMenu("SunnyZ") {
-                Button("Check Sunlight Status") {
-                    // Trigger status check
-                }
-                .keyboardShortcut("r", modifiers: .command)
-                
-                Divider()
-                
-                Button("Pay Tax") {
-                    // Show paywall
-                }
-                .keyboardShortcut("t", modifiers: .command)
-            }
+        // No main window - menu bar only
+        Settings {
+            EmptyView()
         }
     }
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    var menuBarController: MenuBarController!
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Configure appearance
-        NSApp.appearance = NSAppearance(named: .aqua)
+        // Hide dock icon
+        NSApp.setActivationPolicy(.accessory)
+        
+        // Setup menu bar
+        menuBarController = MenuBarController()
+        
+        // Listen for premium window requests
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(showPremium),
+            name: .showPremium,
+            object: nil
+        )
+    }
+    
+    @objc private func showPremium() {
+        menuBarController.showPremium()
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        return true
+        return false // Keep running in menu bar
     }
 }

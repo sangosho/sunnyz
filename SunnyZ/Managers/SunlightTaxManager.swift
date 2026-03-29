@@ -2,17 +2,15 @@
 //  SunlightTaxManager.swift
 //  SunnyZ
 //
-//  Sunlight Tax - The premium subscription for going outside (macOS)
+//  Sunlight Tax - Menu bar edition
 //
 
 import Foundation
 import AppKit
 import IOKit
-import StoreKit
 import Combine
 
 /// Manages the "Sunlight Tax" - charges users for staying indoors too long
-/// Late-stage capitalism meets "touch grass"
 @MainActor
 final class SunlightTaxManager: ObservableObject {
     
@@ -30,52 +28,46 @@ final class SunlightTaxManager: ObservableObject {
     // MARK: - Tax Status
     
     enum TaxStatus: Equatable {
-        case exempt           // Currently in sunlight
-        case warning          // Approaching tax threshold
-        case taxed            // Tax applied, brightness limited
-        case premium          // Premium subscription active
+        case exempt
+        case warning
+        case taxed
+        case premium
         
-        var description: String {
+        var icon: String {
             switch self {
-            case .exempt:
-                return "☀️ Sunlight Detected - Tax Exempt"
-            case .warning:
-                return "⚠️ Cave Dweller Warning"
-            case .taxed:
-                return "💸 SUNLIGHT TAX ACTIVE"
-            case .premium:
-                return "👑 Premium Cave Dweller"
+            case .exempt: return "☀️"
+            case .warning: return "🌤️"
+            case .taxed: return "💸"
+            case .premium: return "👑"
             }
         }
         
-        var color: String {
+        var menuIcon: String {
             switch self {
-            case .exempt: return "#4CAF50"
-            case .warning: return "#FF9800"
-            case .taxed: return "F44336"
-            case .premium: return "#9C27B0"
+            case .exempt: return "sun.max.fill"
+            case .warning: return "cloud.sun.fill"
+            case .taxed: return "dollarsign.circle.fill"
+            case .premium: return "crown.fill"
+            }
+        }
+        
+        var color: NSColor {
+            switch self {
+            case .exempt: return .systemYellow
+            case .warning: return .systemOrange
+            case .taxed: return .systemRed
+            case .premium: return .systemPurple
             }
         }
     }
     
     // MARK: - Constants
     
-    /// Lux threshold for "sunlight" (outdoor/indoor with windows)
     let sunlightThreshold: Double = 100
-    
-    /// Lux threshold for "darkness" (cave dwelling)
     let darknessThreshold: Double = 50
-    
-    /// Time before tax kicks in (4 hours)
     let taxThreshold: TimeInterval = 4 * 60 * 60
-    
-    /// Warning threshold (3.5 hours)
     let warningThreshold: TimeInterval = 3.5 * 60 * 60
-    
-    /// Brightness limit when taxed (50%)
     let taxedBrightnessLimit: Double = 0.5
-    
-    /// Tax amount per unlock
     let taxAmount: Decimal = 0.99
     
     // MARK: - Private Properties
@@ -85,7 +77,6 @@ final class SunlightTaxManager: ObservableObject {
     private var timer: Timer?
     private var displayService: io_object_t = 0
     
-    // UserDefaults keys
     private let kTotalTaxPaid = "sunlightTax.totalPaid"
     private let kLastSunlightDate = "sunlightTax.lastSunlight"
     private let kHasPremium = "sunlightTax.hasPremium"
@@ -105,8 +96,6 @@ final class SunlightTaxManager: ObservableObject {
         }
     }
     
-    // MARK: - Setup
-    
     private func loadSavedState() {
         totalTaxPaid = UserDefaults.standard.double(forKey: kTotalTaxPaid)
         hasPremiumSubscription = UserDefaults.standard.bool(forKey: kHasPremium)
@@ -116,7 +105,6 @@ final class SunlightTaxManager: ObservableObject {
     }
     
     private func setupDisplayConnection() {
-        // Get IOKit connection to control display brightness
         let service = IOServiceGetMatchingService(
             kIOMainPortDefault,
             IOServiceMatching("IODisplayConnect")
@@ -127,13 +115,11 @@ final class SunlightTaxManager: ObservableObject {
     // MARK: - Monitoring
     
     func startMonitoring() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateSunlightStatus()
             }
         }
-        
-        // Initial update
         updateSunlightStatus()
     }
     
@@ -142,45 +128,31 @@ final class SunlightTaxManager: ObservableObject {
         timer = nil
     }
     
-    // MARK: - Sunlight Detection
-    
     private func updateSunlightStatus() {
-        // Read ambient light sensor on Mac
         let lux = readAmbientLightSensor()
         currentLux = lux
-        
-        // Update current display brightness
         currentDisplayBrightness = getDisplayBrightness()
         
-        // Check if we're in sunlight
         if lux >= sunlightThreshold {
             handleSunlightDetected()
         } else if lux <= darknessThreshold {
             handleDarknessDetected()
         }
         
-        // Update tax status
         updateTaxStatus()
-        
-        // Enforce brightness limits
         enforceBrightnessLimit()
     }
     
     private func readAmbientLightSensor() -> Double {
-        // On macOS, we can read the ambient light sensor via IOKit
-        // This is the legitimate way to access ALS on Mac
-        
         let service = IOServiceGetMatchingService(
             kIOMainPortDefault,
             IOServiceMatching("AppleBacklightDisplay")
         )
         
         guard service != 0 else {
-            // Fallback: estimate based on time of day if no sensor
             return estimateLuxFromContext()
         }
         
-        // Try to read the sensor value
         var luxValue: Double = 0
         
         if let dict = IORegistryEntryCreateCFProperties(
@@ -190,20 +162,17 @@ final class SunlightTaxManager: ObservableObject {
             0
         ).takeRetainedValue() as? [String: Any] {
             
-            // Look for ambient light sensor data
             if let alsData = dict["ALSAmbientLightSensor"] as? [String: Any],
                let lux = alsData["lux"] as? Double {
                 luxValue = lux
             } else if let displayParams = dict["DisplayParameters"] as? [String: Any],
                       let brightness = displayParams["Brightness"] as? Double {
-                // Estimate lux from brightness setting
                 luxValue = brightness * 500
             }
         }
         
         IOObjectRelease(service)
         
-        // If we couldn't read sensor, use context estimation
         if luxValue == 0 {
             luxValue = estimateLuxFromContext()
         }
@@ -212,27 +181,18 @@ final class SunlightTaxManager: ObservableObject {
     }
     
     private func estimateLuxFromContext() -> Double {
-        // Fallback estimation based on time of day
         let hour = Calendar.current.component(.hour, from: Date())
-        
-        // Rough daylight hours estimation
         let isDaytime = hour >= 7 && hour < 19
-        
-        // Add some randomness to simulate sensor readings
         let baseLux = isDaytime ? 200.0 : 10.0
         let noise = Double.random(in: -20...20)
-        
         return max(0, baseLux + noise)
     }
     
     private func handleSunlightDetected() {
         lastSunlightDate = Date()
         UserDefaults.standard.set(Date(), forKey: kLastSunlightDate)
-        
         darknessStartTime = nil
         timeInDarkness = 0
-        
-        // Reset brightness limit
         brightnessLimit = 1.0
     }
     
@@ -240,13 +200,10 @@ final class SunlightTaxManager: ObservableObject {
         if darknessStartTime == nil {
             darknessStartTime = Date()
         }
-        
         if let startTime = darknessStartTime {
             timeInDarkness = Date().timeIntervalSince(startTime)
         }
     }
-    
-    // MARK: - Tax Logic
     
     private func updateTaxStatus() {
         if hasPremiumSubscription {
@@ -267,26 +224,20 @@ final class SunlightTaxManager: ObservableObject {
         }
     }
     
-    // MARK: - Display Brightness Control
-    
     private func getDisplayBrightness() -> Double {
         guard displayService != 0 else { return 1.0 }
-        
         var brightness: Float = 1.0
         IODisplayGetFloatParameter(
             displayService,
             kIODisplayBrightnessKey as CFString,
             &brightness
         )
-        
         return Double(brightness)
     }
     
     private func setDisplayBrightness(_ value: Double) {
         guard displayService != 0 else { return }
-        
         let clampedValue = max(0, min(1, Float(value)))
-        
         IODisplaySetFloatParameter(
             displayService,
             kIODisplayBrightnessKey as CFString,
@@ -296,38 +247,28 @@ final class SunlightTaxManager: ObservableObject {
     
     private func enforceBrightnessLimit() {
         guard taxStatus == .taxed else { return }
-        
         let currentBrightness = getDisplayBrightness()
         if currentBrightness > brightnessLimit {
             setDisplayBrightness(brightnessLimit)
         }
     }
     
-    // MARK: - StoreKit Integration
+    // MARK: - StoreKit
     
-    /// Pay the sunlight tax to unlock brightness temporarily
     func payTax() async throws {
-        // Simulate the purchase
-        try await Task.sleep(nanoseconds: 1_000_000_000)
-        
-        // Unlock brightness for 1 hour
+        try await Task.sleep(nanoseconds: 500_000_000)
         brightnessLimit = 1.0
         setDisplayBrightness(1.0)
-        
         totalTaxPaid += Double(truncating: taxAmount as NSNumber)
         UserDefaults.standard.set(totalTaxPaid, forKey: kTotalTaxPaid)
         
-        // Schedule re-tax after 1 hour
         DispatchQueue.main.asyncAfter(deadline: .now() + 3600) { [weak self] in
             self?.updateTaxStatus()
         }
     }
     
-    /// Purchase premium subscription (unlimited cave dwelling)
     func purchasePremium() async throws {
-        // Simulate premium purchase
-        try await Task.sleep(nanoseconds: 1_000_000_000)
-        
+        try await Task.sleep(nanoseconds: 500_000_000)
         hasPremiumSubscription = true
         UserDefaults.standard.set(true, forKey: kHasPremium)
         brightnessLimit = 1.0
@@ -335,7 +276,7 @@ final class SunlightTaxManager: ObservableObject {
         taxStatus = .premium
     }
     
-    // MARK: - Statistics
+    // MARK: - Formatting
     
     var formattedTimeInDarkness: String {
         let hours = Int(timeInDarkness) / 3600
@@ -355,7 +296,12 @@ final class SunlightTaxManager: ObservableObject {
     }
     
     var formattedTimeUntilTax: String {
-        let minutes = Int(timeUntilTax) / 60
-        return "\(minutes) min"
+        let hours = Int(timeUntilTax) / 3600
+        let minutes = Int(timeUntilTax) % 3600 / 60
+        return "\(hours)h \(minutes)m"
+    }
+    
+    var progressToTax: Double {
+        min(timeInDarkness / taxThreshold, 1.0)
     }
 }

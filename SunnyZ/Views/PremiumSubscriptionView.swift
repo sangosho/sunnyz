@@ -2,27 +2,25 @@
 //  PremiumSubscriptionView.swift
 //  SunnyZ
 //
-//  Premium subscription for unlimited cave dwelling (macOS)
+//  Premium subscription window
 //
 
 import SwiftUI
 
 struct PremiumSubscriptionView: View {
     @ObservedObject var taxManager: SunlightTaxManager
-    @Environment(\.dismiss) private var dismiss
     @State private var isProcessing = false
-    @State private var showSuccess = false
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                // Crown header
-                VStack(spacing: 16) {
+            VStack(spacing: 20) {
+                // Header
+                VStack(spacing: 12) {
                     Text("👑")
-                        .font(.system(size: 80))
+                        .font(.system(size: 64))
                     
                     Text("Premium Cave Dweller")
-                        .font(.title)
+                        .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.purple)
                     
@@ -33,9 +31,9 @@ struct PremiumSubscriptionView: View {
                 }
                 
                 // Pricing
-                VStack(spacing: 8) {
+                VStack(spacing: 4) {
                     Text("$4.99")
-                        .font(.system(size: 48, weight: .bold))
+                        .font(.system(size: 40, weight: .bold))
                     Text("per month")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -44,16 +42,15 @@ struct PremiumSubscriptionView: View {
                 .frame(maxWidth: .infinity)
                 .background(
                     LinearGradient(
-                        colors: [.purple, .pink],
+                        colors: [.purple.opacity(0.3), .pink.opacity(0.3)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 )
-                .foregroundColor(.white)
-                .cornerRadius(16)
+                .cornerRadius(12)
                 
                 // Features
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 12) {
                     Text("Premium Features")
                         .font(.headline)
                     
@@ -66,34 +63,34 @@ struct PremiumSubscriptionView: View {
                     PremiumFeatureRow(
                         icon: "☀️",
                         title: "Unlimited Brightness",
-                        description: "Full display brightness 24/7, even in caves"
+                        description: "Full display brightness 24/7"
                     )
                     
                     PremiumFeatureRow(
                         icon: "📊",
                         title: "Cave Stats",
-                        description: "Detailed analytics on your indoor time"
+                        description: "Detailed indoor time analytics"
                     )
                     
                     PremiumFeatureRow(
                         icon: "🏆",
                         title: "Cave Dweller Badge",
-                        description: "Show off your commitment to the indoors"
+                        description: "Show off your commitment"
                     )
                     
                     PremiumFeatureRow(
                         icon: "💻",
                         title: "Developer Mode",
-                        description: "Optimized for marathon coding sessions"
+                        description: "Optimized for coding marathons"
                     )
                 }
                 .padding()
                 .background(Color.gray.opacity(0.1))
-                .cornerRadius(16)
+                .cornerRadius(12)
                 
                 // Testimonials
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("What Premium Users Say")
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("What Users Say")
                         .font(.headline)
                     
                     TestimonialCard(
@@ -102,13 +99,13 @@ struct PremiumSubscriptionView: View {
                     )
                     
                     TestimonialCard(
-                        quote: "Finally, a subscription that understands my lifestyle.",
-                        author: "@BasementDeveloper"
+                        quote: "Finally, a subscription that understands me.",
+                        author: "@BasementDev"
                     )
                 }
                 .padding()
                 .background(Color.gray.opacity(0.1))
-                .cornerRadius(16)
+                .cornerRadius(12)
                 
                 // Subscribe button
                 Button(action: subscribe) {
@@ -127,24 +124,18 @@ struct PremiumSubscriptionView: View {
                 .padding()
                 .background(isProcessing ? Color.gray : Color.purple)
                 .foregroundColor(.white)
-                .cornerRadius(12)
+                .cornerRadius(10)
                 .disabled(isProcessing)
                 .buttonStyle(.plain)
                 
-                // Disclaimer
-                Text("Subscription auto-renews. Cancel anytime. No refunds for sunlight exposure.")
+                Text("Auto-renews. Cancel anytime. No refunds for sunlight exposure.")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
             .padding()
         }
-        .frame(width: 500, height: 700)
-        .overlay {
-            if showSuccess {
-                PremiumSuccessOverlay()
-            }
-        }
+        .frame(width: 380, height: 600)
     }
     
     private func subscribe() {
@@ -155,13 +146,20 @@ struct PremiumSubscriptionView: View {
             
             await MainActor.run {
                 isProcessing = false
-                showSuccess = true
+                dismissWindow()
                 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    dismiss()
-                }
+                let alert = NSAlert()
+                alert.messageText = "Welcome to Premium! 👑"
+                alert.informativeText = "You're now a certified cave dweller."
+                alert.alertStyle = .informational
+                alert.addButton(withTitle: "Awesome")
+                alert.runModal()
             }
         }
+    }
+    
+    private func dismissWindow() {
+        NSApplication.shared.keyWindow?.close()
     }
 }
 
@@ -171,11 +169,11 @@ struct PremiumFeatureRow: View {
     let description: String
     
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             Text(icon)
-                .font(.title2)
+                .font(.title3)
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline)
                     .fontWeight(.semibold)
@@ -194,45 +192,17 @@ struct TestimonialCard: View {
     let author: String
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             Text("\"\(quote)\"")
-                .font(.subheadline)
+                .font(.caption)
                 .italic()
             Text("— \(author)")
-                .font(.caption)
+                .font(.caption2)
                 .foregroundColor(.secondary)
         }
-        .padding()
+        .padding(8)
         .background(Color.white.opacity(0.5))
-        .cornerRadius(8)
-    }
-}
-
-struct PremiumSuccessOverlay: View {
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.5)
-            
-            VStack(spacing: 16) {
-                Text("👑")
-                    .font(.system(size: 60))
-                Text("Welcome to Premium!")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                Text("You're now a certified cave dweller")
-                    .foregroundColor(.white.opacity(0.8))
-            }
-            .padding(32)
-            .background(
-                LinearGradient(
-                    colors: [.purple, .pink],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .cornerRadius(16)
-        }
+        .cornerRadius(6)
     }
 }
 
