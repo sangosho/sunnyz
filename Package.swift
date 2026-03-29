@@ -20,7 +20,8 @@ let package = Package(
             dependencies: [],
             path: "SunnyZ",
             swiftSettings: [
-                .unsafeFlags(["-framework", "IOKit"])
+                .unsafeFlags(["-framework", "IOKit"]),
+                .unsafeFlags(["-framework", "ServiceManagement"])
             ]
         ),
     ]

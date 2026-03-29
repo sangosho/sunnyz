@@ -2,7 +2,7 @@
 //  MenuBarController.swift
 //  SunnyZ
 //
-//  Menu bar controller for Sunlight Tax
+//  Menu bar controller for Sunlight Tax with lux sensor support
 //
 
 import AppKit
@@ -40,7 +40,7 @@ final class MenuBarController: NSObject, ObservableObject {
         
         // Create popover
         popover = NSPopover()
-        popover.contentSize = NSSize(width: 320, height: 400)
+        popover.contentSize = NSSize(width: 320, height: 450)
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(
             rootView: MenuPopoverView(taxManager: taxManager)
@@ -53,6 +53,43 @@ final class MenuBarController: NSObject, ObservableObject {
                 self?.updateMenuIcon(status: status)
             }
             .store(in: &cancellables)
+        
+        // Subscribe to timeInDarkness for notification triggers
+        taxManager.$timeInDarkness
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] timeInDarkness in
+                self?.checkNotifications(timeInDarkness: timeInDarkness)
+            }
+            .store(in: &cancellables)
+        
+        // Subscribe to lux changes to reset notification state when going outside
+        taxManager.$currentLux
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] lux in
+                self?.handleLuxChange(lux: lux)
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func checkNotifications(timeInDarkness: TimeInterval) {
+        NotificationManager.shared.checkAndSendWarnings(
+            timeInDarkness: timeInDarkness,
+            taxThreshold: taxManager.taxThreshold,
+            taxStatus: taxManager.taxStatus
+        )
+    }
+    
+    private var lastLuxWasSunlight = false
+    
+    private func handleLuxChange(lux: Double) {
+        let isSunlight = lux >= taxManager.sunlightThreshold
+        
+        // Reset notification state when going from darkness to sunlight
+        if isSunlight && !lastLuxWasSunlight {
+            NotificationManager.shared.resetNotificationState()
+        }
+        
+        lastLuxWasSunlight = isSunlight
     }
     
     private func updateMenuIcon(status: SunlightTaxManager.TaxStatus) {
@@ -72,7 +109,16 @@ final class MenuBarController: NSObject, ObservableObject {
                 popover.performClose(nil)
             } else {
                 popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+                // Clear badge when opening menu
+                NotificationManager.shared.clearBadge()
             }
+        }
+    }
+    
+    func showPopover() {
+        if let button = statusItem.button, !popover.isShown {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            NotificationManager.shared.clearBadge()
         }
     }
     
@@ -104,5 +150,20 @@ final class MenuBarController: NSObject, ObservableObject {
             rootView: PremiumSubscriptionView(taxManager: taxManager)
         )
         premiumWindow.makeKeyAndOrderFront(nil)
+    }
+    
+    func showSettings() {
+        let settingsWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 520),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        settingsWindow.title = "SunnyZ Settings"
+        settingsWindow.center()
+        settingsWindow.contentView = NSHostingView(
+            rootView: SettingsView(taxManager: taxManager)
+        )
+        settingsWindow.makeKeyAndOrderFront(nil)
     }
 }
