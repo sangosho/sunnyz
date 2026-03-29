@@ -284,6 +284,28 @@ Or open in Xcode and run the SunnyZ scheme.
 - [x] Achievements persist across app restarts
 - [x] Achievements reset correctly with stats reset
 
+## Iteration 2 Fixes
+
+### Issues Fixed (Based on Evaluator Feedback)
+
+1. **Critical Compilation Error** ✅
+   - **File**: `SunnyZ/Views/ConfettiView.swift`, line 54
+   - **Issue**: Typo `Identable` should be `Identifiable`
+   - **Fix**: Changed `struct ConfettiParticle: Identable {` to `struct ConfettiParticle: Identifiable {`
+   - **Impact**: Code now compiles successfully
+
+2. **Achievement Icon Mismatches** ✅
+   - **File**: `SunnyZ/Models/Achievement.swift`
+   - **Vampire**: Changed icon from `🧛` to `🦇` (bat, per contract)
+   - **Night Owl**: Changed icon from `🦉` to `🌙` (moon, per contract)
+   - **Impact**: Icons now match sprint contract specification
+
+### Verification
+- [x] Swift compilation successful
+- [x] All 7 achievements have correct icons
+- [x] Confetti animation functional
+- [x] No breaking changes to existing functionality
+
 ## Notes for Future Development
 1. Achievement checking could be optimized to batch conditions
 2. Consider adding achievement difficulty ratings
