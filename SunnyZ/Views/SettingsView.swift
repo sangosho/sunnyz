@@ -123,6 +123,9 @@ struct TabButton: View {
 struct NotificationsTab: View {
     @StateObject private var settings = SettingsManager.shared
     @StateObject private var notificationManager = NotificationManager.shared
+    @StateObject private var snarkManager = SnarkManager.shared
+    @State private var showingPreviewMessage = false
+    @State private var previewMessage = ""
     
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -184,6 +187,94 @@ struct NotificationsTab: View {
                 
                 Divider()
                 
+                // Snarky Reminders Section
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Image(systemName: "text.bubble.fill")
+                            .foregroundColor(.purple)
+                            .frame(width: 24)
+                        Text("Go Outside Reminders")
+                            .font(.headline)
+                    }
+                    
+                    Toggle("Enable Reminders", isOn: $snarkManager.remindersEnabled)
+                    
+                    if snarkManager.remindersEnabled {
+                        VStack(alignment: .leading, spacing: 16) {
+                            // Reminder Interval Picker
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Reminder Frequency")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                Picker("Interval", selection: $snarkManager.reminderInterval) {
+                                    ForEach(SnarkManager.ReminderInterval.allCases) { interval in
+                                        Text(interval.displayName)
+                                            .tag(interval)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                            }
+                            .padding(.leading, 20)
+                            
+                            // Snark Level Slider
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Snark Level")
+                                        .font(.subheadline)
+                                    Spacer()
+                                    Text("\(snarkManager.snarkLevel.emoji) \(snarkManager.snarkLevel.displayName)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Picker("Snark Level", selection: $snarkManager.snarkLevel) {
+                                    ForEach(SnarkManager.SnarkLevel.allCases) { level in
+                                        Text(level.displayName)
+                                            .tag(level)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                                
+                                Text(snarkManager.snarkLevel.description)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.leading, 20)
+                            
+                            // Preview Button
+                            Button(action: showPreview) {
+                                HStack {
+                                    Image(systemName: "eye.fill")
+                                    Text("Preview Message")
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .padding(.leading, 20)
+                            
+                            // Test Button
+                            Button(action: sendTestReminder) {
+                                HStack {
+                                    Image(systemName: "bell.badge.fill")
+                                    Text("Send Test Reminder")
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.purple)
+                            .padding(.leading, 20)
+                            .disabled(!notificationManager.isAuthorized)
+                            
+                            // Info text
+                            Text("Only shown when in darkness, paused when taxed")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.leading, 20)
+                        }
+                    }
+                }
+                
+                Divider()
+                
                 // Daily Summary
                 VStack(alignment: .leading, spacing: 12) {
                     Toggle("Daily Summary", isOn: $notificationManager.dailySummaryEnabled)
@@ -214,6 +305,23 @@ struct NotificationsTab: View {
                 }
             }
         }
+        .alert("Preview", isPresented: $showingPreviewMessage) {
+            Button("OK") { }
+            Button("Another") {
+                showPreview()
+            }
+        } message: {
+            Text(previewMessage)
+        }
+    }
+    
+    private func showPreview() {
+        previewMessage = snarkManager.previewMessage(for: snarkManager.snarkLevel)
+        showingPreviewMessage = true
+    }
+    
+    private func sendTestReminder() {
+        snarkManager.sendTestReminder()
     }
 }
 

@@ -221,6 +221,9 @@ final class SunlightTaxManager: ObservableObject {
             // Reset notification state when going outside
             NotificationManager.shared.resetNotificationState()
             
+            // Post sunlight detected notification for snark manager
+            NotificationCenter.default.post(name: .sunlightDetected, object: nil)
+            
             darknessStartTime = nil
             timeInDarkness = 0
             brightnessLimit = 1.0

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MenuPopoverView: View {
     @ObservedObject var taxManager: SunlightTaxManager
+    @StateObject private var snarkManager = SnarkManager.shared
     @State private var showingPaywall = false
     @State private var showingPremium = false
     @State private var showingSettings = false
@@ -27,6 +28,11 @@ struct MenuPopoverView: View {
             
             // Progress bar
             progressSection
+            
+            Divider()
+            
+            // Snark indicator
+            snarkSection
             
             Divider()
             
@@ -168,6 +174,53 @@ struct MenuPopoverView: View {
         .padding(.vertical, 12)
     }
     
+    private var snarkSection: some View {
+        HStack(spacing: 8) {
+            Text(snarkManager.snarkLevel.emoji)
+                .font(.caption)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text("Snark Level: \(snarkManager.snarkLevel.displayName)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if snarkManager.remindersEnabled && snarkManager.reminderInterval != .off {
+                        Circle()
+                            .fill(Color.purple)
+                            .frame(width: 6, height: 6)
+                    }
+                }
+                
+                if snarkManager.remindersEnabled && snarkManager.reminderInterval != .off {
+                    Text(snarkManager.nextReminderDescription)
+                        .font(.caption2)
+                        .foregroundColor(.purple)
+                } else {
+                    Text("Reminders off")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            // Manual remind button
+            if snarkManager.remindersEnabled {
+                Button(action: sendManualReminder) {
+                    Image(systemName: "bell.fill")
+                        .font(.caption)
+                        .foregroundColor(.purple)
+                }
+                .buttonStyle(.plain)
+                .help("Remind me now")
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color.purple.opacity(0.05))
+    }
+    
     private var progressGradient: LinearGradient {
         LinearGradient(
             colors: [.green, .yellow, .orange, .red],
@@ -303,6 +356,10 @@ struct MenuPopoverView: View {
     
     private func quit() {
         NSApplication.shared.terminate(nil)
+    }
+    
+    private func sendManualReminder() {
+        snarkManager.sendTestReminder()
     }
 }
 
