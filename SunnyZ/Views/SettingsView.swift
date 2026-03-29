@@ -48,7 +48,7 @@ struct SettingsView: View {
             Divider()
             
             // Tab content
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 20) {
                     switch selectedTab {
                     case .notifications:

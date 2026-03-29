@@ -70,9 +70,21 @@ open SunnyZ.xcodeproj  # or generate with `swift package generate-xcodeproj`
 
 ## Testing
 
-- No formal test suite yet (v1.0)
-- Manual testing: run the app, trigger tax conditions by setting system clock or covering sensor
-- Key scenarios to verify: tax triggers, brightness clamping, payment flow, achievements, notifications
+```bash
+swift test
+```
+
+The test suite covers:
+- **AchievementTests** — Model encoding/decoding, Equatable conformance, helper methods
+- **SettingsManagerTests** — Default values, TaxThreshold enum, lux calibration, persistence
+- **SnarkManagerTests** — Snark levels, reminder intervals, message generation
+- **SunlightTaxManagerTests** — TaxStatus enum, initial state, time formatting, progress calculations
+
+Tests run without hardware (no sensor/display required). Note: tests create `@MainActor` manager instances, so they use `async throws`.
+
+### Known Limitation
+- `swift run` disables notifications (requires `.app` bundle for `UNUserNotificationCenter`)
+- Full testing requires running through Xcode: `open Package.swift`
 
 ## Common Tasks
 

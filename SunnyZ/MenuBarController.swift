@@ -22,10 +22,10 @@ final class MenuBarController: NSObject, ObservableObject {
     private var menuClickCount = 0
     private var menuClickTimer: Timer?
     private var konamiIndex = 0
-    private let konamiCode: [NSEvent.SpecialKey] = [
-        .upArrow, .upArrow, .downArrow, .downArrow,
-        .leftArrow, .rightArrow, .leftArrow, .rightArrow,
-        .keyB, .keyA
+    private let konamiCode: [String] = [
+        "Up", "Up", "Down", "Down",
+        "Left", "Right", "Left", "Right",
+        "b", "a"
     ]
 
     override init() {
@@ -43,7 +43,7 @@ final class MenuBarController: NSObject, ObservableObject {
         taxManager = SunlightTaxManager()
 
         // Create status item
-        statusItem = NSStatusBar.shared.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
             button.image = NSImage(
@@ -103,7 +103,8 @@ final class MenuBarController: NSObject, ObservableObject {
         SettingsManager.shared.$debugModeEnabled
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.updateMenuIcon(status: self?.taxManager.taxStatus ?? .clear)
+                guard let self = self else { return }
+                self.updateMenuIcon(status: self.taxManager.taxStatus)
             }
             .store(in: &cancellables)
 
@@ -125,9 +126,23 @@ final class MenuBarController: NSObject, ObservableObject {
     }
 
     private func handleKeyEvent(_ event: NSEvent) {
-        guard let specialKey = event.specialKey else { return }
+        var keyString: String?
 
-        if konamiIndex < konamiCode.count && specialKey == konamiCode[konamiIndex] {
+        if let specialKey = event.specialKey {
+            switch specialKey {
+            case .upArrow: keyString = "Up"
+            case .downArrow: keyString = "Down"
+            case .leftArrow: keyString = "Left"
+            case .rightArrow: keyString = "Right"
+            default: break
+            }
+        } else {
+            keyString = event.charactersIgnoringModifiers?.lowercased()
+        }
+
+        guard let key = keyString else { return }
+
+        if konamiIndex < konamiCode.count && key == konamiCode[konamiIndex].lowercased() {
             konamiIndex += 1
 
             // Check if Konami code complete
@@ -245,7 +260,15 @@ final class MenuBarController: NSObject, ObservableObject {
             accessibilityDescription: isDebugMode ? "SunnyZ (DEBUG)" : "SunnyZ"
         )
         button.image?.size = NSSize(width: 18, height: 18)
-        button.contentTintColor = status.color
+        
+        let nsColor: NSColor
+        switch status {
+        case .exempt: nsColor = .systemGreen
+        case .warning: nsColor = .systemOrange
+        case .taxed: nsColor = .systemRed
+        case .premium: nsColor = .systemPurple
+        }
+        button.contentTintColor = nsColor
         
         // Update tooltip with debug indicator if enabled
         if isDebugMode {

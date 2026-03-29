@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 /// Debug panel for testing app features and states
 struct DebugPanelView: View {
@@ -121,7 +122,7 @@ struct DebugPanelView: View {
                         .tint(debugAccentColor)
                         .onChange(of: luxSliderValue) { newValue in
                             if overrideRealSensor {
-                                luxManager.setDebugOverride(lux: newValue)
+                                luxManager.setDebugOverride(newValue)
                             }
                         }
                     
@@ -144,7 +145,7 @@ struct DebugPanelView: View {
                 Toggle("Override Real Sensor", isOn: $overrideRealSensor)
                     .onChange(of: overrideRealSensor) { isOn in
                         if isOn {
-                            luxManager.setDebugOverride(lux: luxSliderValue)
+                            luxManager.setDebugOverride(luxSliderValue)
                         } else {
                             luxManager.clearDebugOverride()
                         }
@@ -193,16 +194,16 @@ struct DebugPanelView: View {
                 
                 HStack(spacing: 8) {
                     StatusButton(title: "Exempt", color: .green) {
-                        taxManager.forceTaxStatus(.exempt)
+                        taxManager.forceTaxStatus(SunlightTaxManager.TaxStatus.exempt)
                     }
                     StatusButton(title: "Warning", color: .orange) {
-                        taxManager.forceTaxStatus(.warning)
+                        taxManager.forceTaxStatus(SunlightTaxManager.TaxStatus.warning)
                     }
                     StatusButton(title: "Taxed", color: .red) {
-                        taxManager.forceTaxStatus(.taxed)
+                        taxManager.forceTaxStatus(SunlightTaxManager.TaxStatus.taxed)
                     }
                     StatusButton(title: "Premium", color: .purple) {
-                        taxManager.forceTaxStatus(.premium)
+                        taxManager.forceTaxStatus(SunlightTaxManager.TaxStatus.premium)
                     }
                 }
                 
@@ -379,7 +380,7 @@ struct DebugPanelView: View {
                     Slider(value: $timeMultiplier, in: 1...60, step: 1)
                         .tint(debugAccentColor)
                         .onChange(of: timeMultiplier) { newValue in
-                            taxManager.setTimeAcceleration(multiplier: newValue)
+                            taxManager.setTimeAcceleration(newValue)
                         }
                     
                     HStack {
@@ -408,7 +409,7 @@ struct DebugPanelView: View {
                 // Reset button
                 Button {
                     timeMultiplier = 1
-                    taxManager.setTimeAcceleration(multiplier: 1)
+                    taxManager.setTimeAcceleration(1)
                 } label: {
                     Label("Reset to 1x", systemImage: "arrow.counterclockwise")
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -447,13 +448,13 @@ struct DebugPanelView: View {
     private func loadInitialValues() {
         luxSliderValue = luxManager.currentLux
         editableTimeInDarkness = String(Int(taxManager.timeInDarkness))
-        timeMultiplier = taxManager.timeAccelerationMultiplier
+        timeMultiplier = taxManager.timeAcceleration
     }
     
     private func setLuxValue(_ value: Double) {
         luxSliderValue = value
         if overrideRealSensor {
-            luxManager.setDebugOverride(lux: value)
+            luxManager.setDebugOverride(value)
         }
     }
     
@@ -652,150 +653,8 @@ struct TimeMultiplierButton: View {
     }
 }
 
-// MARK: - Manager Extensions for Debug
-
-extension LuxSensorManager {
-    static let shared = LuxSensorManager()
-    
-    private var debugOverrideKey: String { "sunnyz.debug.luxOverride" }
-    
-    func setDebugOverride(lux: Double) {
-        UserDefaults.standard.set(lux, forKey: debugOverrideKey)
-        UserDefaults.standard.set(true, forKey: "sunnyz.debug.luxOverrideEnabled")
-        currentLux = lux
-        accuracy = .estimated
-    }
-    
-    func clearDebugOverride() {
-        UserDefaults.standard.removeObject(forKey: debugOverrideKey)
-        UserDefaults.standard.set(false, forKey: "sunnyz.debug.luxOverrideEnabled")
-        // Reading will resume from actual sensor
-    }
-    
-    func getDebugOverride() -> Double? {
-        guard UserDefaults.standard.bool(forKey: "sunnyz.debug.luxOverrideEnabled") else { return nil }
-        return UserDefaults.standard.double(forKey: debugOverrideKey)
-    }
-}
-
-extension SunlightTaxManager {
-    private var timeAccelerationKey: String { "sunnyz.debug.timeAcceleration" }
-    
-    var timeAccelerationMultiplier: Double {
-        UserDefaults.standard.double(forKey: timeAccelerationKey)
-    }
-    
-    func forceTaxStatus(_ status: TaxStatus) {
-        taxStatus = status
-        switch status {
-        case .exempt:
-            brightnessLimit = 1.0
-            timeInDarkness = 0
-        case .warning:
-            brightnessLimit = 1.0
-            timeInDarkness = warningThreshold + 60 // Just past warning
-        case .taxed:
-            brightnessLimit = taxedBrightnessLimit
-            timeInDarkness = taxThreshold + 60 // Just past tax threshold
-        case .premium:
-            brightnessLimit = 1.0
-            hasPremiumSubscription = true
-        }
-    }
-    
-    func forceTimeInDarkness(_ seconds: TimeInterval) {
-        timeInDarkness = seconds
-        // Recalculate darkness start time based on current time
-        if seconds > 0 {
-            darknessStartTime = Date().addingTimeInterval(-seconds)
-            UserDefaults.standard.set(darknessStartTime, forKey: "sunlightTax.darknessStartTime")
-        }
-        updateTaxStatus()
-    }
-    
-    func resetDarknessTimer() {
-        timeInDarkness = 0
-        darknessStartTime = nil
-        UserDefaults.standard.removeObject(forKey: "sunlightTax.darknessStartTime")
-        updateTaxStatus()
-    }
-    
-    func setTimeAcceleration(multiplier: Double) {
-        UserDefaults.standard.set(multiplier, forKey: timeAccelerationKey)
-        // The actual acceleration would be applied in the timer logic
-    }
-}
-
-extension SettingsManager {
-    private var debugModeKey: String { "sunnyz.settings.debugModeEnabled" }
-    
-    var debugModeEnabled: Bool {
-        get {
-            UserDefaults.standard.bool(forKey: debugModeKey)
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: debugModeKey)
-        }
-    }
-}
-
-extension AchievementManager {
-    func saveAchievements() {
-        if let encoded = try? JSONEncoder().encode(achievements) {
-            UserDefaults.standard.set(encoded, forKey: "sunlightTax.achievements")
-        }
-        totalUnlocked = achievements.filter { $0.isUnlocked }.count
-    }
-}
-
-extension NotificationManager {
-    func sendTestWarningNotification() {
-        let content = UNMutableNotificationContent()
-        content.title = "⏰ Test Warning"
-        content.body = "🌤️ Tax season is approaching... You've got 30 minutes before your cave-dwelling costs you."
-        content.sound = .default
-        
-        let request = UNNotificationRequest(
-            identifier: "sunnyz.test.warning-\(UUID().uuidString)",
-            content: content,
-            trigger: nil
-        )
-        
-        UNUserNotificationCenter.current().add(request)
-    }
-    
-    func sendTestTaxAppliedNotification() {
-        let content = UNMutableNotificationContent()
-        content.title = "💸 Test Tax Applied!"
-        content.body = "🧌 Cave troll status confirmed. Pay $0.99 to restore full brightness."
-        content.sound = .default
-        content.categoryIdentifier = NotificationID.taxApplied
-        
-        let request = UNNotificationRequest(
-            identifier: "sunnyz.test.taxApplied-\(UUID().uuidString)",
-            content: content,
-            trigger: nil
-        )
-        
-        UNUserNotificationCenter.current().add(request)
-    }
-    
-    func sendTestDailySummary() {
-        let content = UNMutableNotificationContent()
-        content.title = "🌅 Test Daily Report"
-        content.body = "☀️ Today: 3:42 in darkness | Total tax paid: $2.97"
-        content.sound = .default
-        content.categoryIdentifier = NotificationID.dailySummary
-        
-        let request = UNNotificationRequest(
-            identifier: "sunnyz.test.summary-\(UUID().uuidString)",
-            content: content,
-            trigger: nil
-        )
-        
-        UNUserNotificationCenter.current().add(request)
-    }
-}
+// Note: Manager extensions (debug overrides, forceTaxStatus, etc.) are defined
+// in their respective manager files to avoid duplicate declarations.
 
 // MARK: - TaxStatus String Extension
 
