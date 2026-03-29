@@ -113,8 +113,13 @@ final class SunlightTaxManager: ObservableObject {
     deinit {
         stopMonitoring()
         saveState()
+        releaseDisplayService()
+    }
+
+    private func releaseDisplayService() {
         if displayService != 0 {
             IOObjectRelease(displayService)
+            displayService = 0
         }
     }
     
@@ -378,5 +383,35 @@ final class SunlightTaxManager: ObservableObject {
     
     var luxSensorManager: LuxSensorManager {
         luxSensor
+    }
+
+    // MARK: - Sleep/Wake Adjustments
+
+    /// Adjusts darkness tracking to account for system sleep time
+    /// Since user couldn't get sunlight while sleeping, we subtract sleep time
+    func adjustForSleepDuration(_ sleepDuration: TimeInterval) {
+        guard let startTime = darknessStartTime else { return }
+
+        // Adjust the darkness start time forward by sleep duration
+        // This prevents counting sleep time toward tax
+        if let newStartTime = Calendar.current.date(byAdding: .second, value: Int(sleepDuration), to: startTime) {
+            darknessStartTime = newStartTime
+            UserDefaults.standard.set(newStartTime, forKey: kDarknessStartTime)
+
+            // Recalculate time in darkness
+            timeInDarkness = Date().timeIntervalSince(newStartTime)
+
+            print("[SunnyZ] Adjusted darkness time for sleep: -\(Int(sleepDuration/60)) min")
+            updateTaxStatus()
+        }
+    }
+
+    // MARK: - Display Connection Management
+
+    /// Refreshes the display service connection (called after display configuration changes)
+    func refreshDisplayConnection() {
+        releaseDisplayService()
+        setupDisplayConnection()
+        print("[SunnyZ] Display connection refreshed")
     }
 }

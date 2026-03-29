@@ -1,13 +1,13 @@
-[EVALUATOR] Sprint 4 - Test implementation and grade against contract for sunnyz
+[GENERATOR] Sprint 5 - Initial implementation for sunnyz
 
 ## Task Directory
 /home/openclaw/.openclaw/workspace/tasks/sunnyz-20260329
 
 ## Worktree
-/home/openclaw/.openclaw/workspace/workspace-trees/orch-sunnyz-20260329-evaluator-s4
+/home/openclaw/.openclaw/workspace/workspace-trees/orch-sunnyz-20260329-generator-s5
 
 ## Agent Instructions
-Read: /home/openclaw/.openclaw/workspace/tasks/sunnyz-20260329/evaluator-prompt.md
+Read: /home/openclaw/.openclaw/workspace/tasks/sunnyz-20260329/generator-prompt.md
 
 ## Critical Instructions
 1. Read the agent-specific instructions file first

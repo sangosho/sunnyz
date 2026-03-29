@@ -59,6 +59,13 @@ final class NotificationManager: NSObject, ObservableObject {
     private var lastTaxStatus: SunlightTaxManager.TaxStatus = .exempt
     private var currentTaxThreshold: TimeInterval = 4 * 3600 // Default 4 hours
     
+    // MARK: - Notification Deduplication
+    
+    private var pendingNotificationIDs: Set<String> = []
+    private let notificationDedupInterval: TimeInterval = 5.0 // 5 second dedup window
+    private var lastNotificationTimes: [String: Date] = [:]
+    private let notificationLock = NSLock()
+    
     // MARK: - Constants
     
     private let kNotificationsEnabled = "sunnyz.notifications.enabled"
@@ -249,27 +256,80 @@ final class NotificationManager: NSObject, ObservableObject {
         
         // 30-minute warning
         if timeUntilTax <= warning30Time && timeUntilTax > warning5Time && !hasShown30MinWarning {
+            // Check for deduplication
+            guard canSendNotification(id: NotificationID.warning30Min) else { return }
+            
             send30MinuteWarning(timeUntilTax: timeUntilTax)
             hasShown30MinWarning = true
             saveNotificationState()
+            recordNotificationSent(id: NotificationID.warning30Min)
         }
         
         // 5-minute warning
         if timeUntilTax <= warning5Time && timeUntilTax > 0 && !hasShown5MinWarning {
+            // Check for deduplication
+            guard canSendNotification(id: NotificationID.warning5Min) else { return }
+            
             send5MinuteWarning(timeUntilTax: timeUntilTax)
             hasShown5MinWarning = true
             saveNotificationState()
+            recordNotificationSent(id: NotificationID.warning5Min)
         }
         
         // Tax applied notification
         if taxStatus == .taxed && lastTaxStatus != .taxed && !hasShownTaxApplied {
+            // Check for deduplication
+            guard canSendNotification(id: NotificationID.taxApplied) else { return }
+            
             sendTaxAppliedNotification()
             hasShownTaxApplied = true
             saveNotificationState()
+            recordNotificationSent(id: NotificationID.taxApplied)
         }
         
         lastTaxStatus = taxStatus
         UserDefaults.standard.set(taxStatus == .taxed ? 1 : 0, forKey: kLastTaxStatus)
+    }
+    
+    // MARK: - Notification Deduplication
+    
+    /// Checks if a notification can be sent (not a duplicate within the dedup window)
+    private func canSendNotification(id: String) -> Bool {
+        notificationLock.lock()
+        defer { notificationLock.unlock() }
+        
+        // Check if there's a pending notification with this ID
+        if pendingNotificationIDs.contains(id) {
+            print("[SunnyZ] Notification dedup: \(id) already pending")
+            return false
+        }
+        
+        // Check if we've sent this notification recently
+        if let lastTime = lastNotificationTimes[id] {
+            let timeSinceLast = Date().timeIntervalSince(lastTime)
+            if timeSinceLast < notificationDedupInterval {
+                print("[SunnyZ] Notification dedup: \(id) sent \(Int(timeSinceLast))s ago")
+                return false
+            }
+        }
+        
+        return true
+    }
+    
+    /// Records that a notification has been sent
+    private func recordNotificationSent(id: String) {
+        notificationLock.lock()
+        defer { notificationLock.unlock() }
+        
+        pendingNotificationIDs.insert(id)
+        lastNotificationTimes[id] = Date()
+        
+        // Clean up pending ID after dedup interval
+        DispatchQueue.main.asyncAfter(deadline: .now() + notificationDedupInterval) { [weak self] in
+            self?.notificationLock.lock()
+            self?.pendingNotificationIDs.remove(id)
+            self?.notificationLock.unlock()
+        }
     }
     
     private func send30MinuteWarning(timeUntilTax: TimeInterval) {

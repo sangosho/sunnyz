@@ -34,6 +34,11 @@ final class MenuBarController: NSObject, ObservableObject {
         setupEasterEggMonitor()
     }
     
+    private var isPaused = false
+    private var isUIUpdatesPaused = false
+    private var accumulatedSleepTime: TimeInterval = 0
+    private var displayReconnectionTimer: Timer?
+
     private func setupMenuBar() {
         taxManager = SunlightTaxManager()
 
@@ -43,12 +48,16 @@ final class MenuBarController: NSObject, ObservableObject {
         if let button = statusItem.button {
             button.image = NSImage(
                 systemSymbolName: "sun.max.fill",
-                accessibilityDescription: "SunnyZ"
+                accessibilityDescription: "SunnyZ - Sunlight Tax Tracker"
             )
             button.image?.size = NSSize(width: 18, height: 18)
             button.action = #selector(togglePopover)
             button.target = self
+            button.toolTip = "SunnyZ: Track your cave-dwelling time (⌘, for settings)"
         }
+
+        // Setup display change monitoring
+        setupDisplayChangeMonitoring()
         
         // Create popover
         popover = NSPopover()
@@ -308,5 +317,54 @@ final class MenuBarController: NSObject, ObservableObject {
             rootView: AchievementsView()
         )
         achievementsWindow.makeKeyAndOrderFront(nil)
+    }
+
+    // MARK: - Sleep/Wake Handling
+
+    func pauseMonitoring() {
+        isPaused = true
+        print("[SunnyZ] Monitoring paused for sleep")
+    }
+
+    func resumeMonitoring(sleepDuration: TimeInterval) {
+        isPaused = false
+        accumulatedSleepTime = sleepDuration
+        print("[SunnyZ] Monitoring resumed after sleep (duration: \(Int(sleepDuration/60)) min)")
+
+        // Update tax manager to account for sleep time
+        // We subtract sleep time from darkness calculation since user couldn't get sunlight
+        taxManager.adjustForSleepDuration(sleepDuration)
+    }
+
+    func pauseUIUpdates() {
+        isUIUpdatesPaused = true
+    }
+
+    func resumeUIUpdates() {
+        isUIUpdatesPaused = false
+        // Force an immediate update
+        updateMenuIcon(status: taxManager.taxStatus)
+    }
+
+    // MARK: - Display Change Handling
+
+    private func setupDisplayChangeMonitoring() {
+        // Monitor for display configuration changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDisplayConfigurationChange),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
+    }
+
+    @objc private func handleDisplayConfigurationChange() {
+        print("[SunnyZ] Display configuration changed")
+
+        // Invalidate and recreate display service
+        displayReconnectionTimer?.invalidate()
+        displayReconnectionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+            self?.taxManager.refreshDisplayConnection()
+        }
     }
 }
