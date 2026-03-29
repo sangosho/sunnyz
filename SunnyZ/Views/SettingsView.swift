@@ -20,14 +20,16 @@ struct SettingsView: View {
     enum SettingsTab: String, CaseIterable, Identifiable {
         case notifications = "Notifications"
         case taxSettings = "Tax Settings"
+        case achievements = "Achievements"
         case about = "About"
-        
+
         var id: String { rawValue }
-        
+
         var icon: String {
             switch self {
             case .notifications: return "bell.fill"
             case .taxSettings: return "dollarsign.circle.fill"
+            case .achievements: return "trophy.fill"
             case .about: return "info.circle.fill"
             }
         }
@@ -48,6 +50,8 @@ struct SettingsView: View {
                         NotificationsTab()
                     case .taxSettings:
                         TaxSettingsTab(taxManager: taxManager)
+                    case .achievements:
+                        AchievementsTabWrapper()
                     case .about:
                         AboutTab(taxManager: taxManager, showingResetConfirmation: $showingResetConfirmation)
                     }
@@ -646,6 +650,14 @@ struct AboutTab: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+// MARK: - Achievements Tab Wrapper
+
+struct AchievementsTabWrapper: View {
+    var body: some View {
+        AchievementsView()
     }
 }
 

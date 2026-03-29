@@ -318,7 +318,10 @@ final class SunlightTaxManager: ObservableObject {
         setDisplayBrightness(1.0)
         totalTaxPaid += Double(truncating: taxAmount as NSNumber)
         UserDefaults.standard.set(totalTaxPaid, forKey: kTotalTaxPaid)
-        
+
+        // Track tax payment for achievements
+        AchievementManager.shared.handleTaxPayment()
+
         // Temporary tax relief - reset after 1 hour
         DispatchQueue.main.asyncAfter(deadline: .now() + 3600) { [weak self] in
             self?.updateTaxStatus()

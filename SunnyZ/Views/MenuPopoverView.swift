@@ -10,47 +10,64 @@ import SwiftUI
 struct MenuPopoverView: View {
     @ObservedObject var taxManager: SunlightTaxManager
     @StateObject private var snarkManager = SnarkManager.shared
+    @StateObject private var achievementManager = AchievementManager.shared
     @State private var showingPaywall = false
     @State private var showingPremium = false
     @State private var showingSettings = false
-    
+    @State private var showingAchievementsCelebration = false
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Header with status
-            headerSection
-            
-            Divider()
-            
-            // Stats
-            statsSection
-            
-            Divider()
-            
-            // Progress bar
-            progressSection
-            
-            Divider()
-            
-            // Snark indicator
-            snarkSection
-            
-            Divider()
-            
-            // Lux accuracy indicator
-            luxAccuracySection
-            
-            Divider()
-            
-            // Actions
-            actionsSection
-            
-            Spacer()
-            
-            // Footer
-            footerSection
+        ZStack {
+            VStack(spacing: 0) {
+                // Header with status
+                headerSection
+
+                Divider()
+
+                // Stats
+                statsSection
+
+                Divider()
+
+                // Progress bar
+                progressSection
+
+                Divider()
+
+                // Snark indicator
+                snarkSection
+
+                Divider()
+
+                // Lux accuracy indicator
+                luxAccuracySection
+
+                Divider()
+
+                // Achievement indicator
+                achievementSection
+
+                Divider()
+
+                // Actions
+                actionsSection
+
+                Spacer()
+
+                // Footer
+                footerSection
+            }
+            .padding(.vertical, 12)
+            .frame(width: 320)
+
+            // Confetti celebration overlay
+            if achievementManager.showConfetti {
+                confettiCelebration
+            }
         }
-        .padding(.vertical, 12)
-        .frame(width: 320)
+        .onAppear {
+            checkAchievementsOnAppear()
+        }
     }
     
     private var headerSection: some View {
@@ -267,7 +284,75 @@ struct MenuPopoverView: View {
         case .unavailable: return .red
         }
     }
-    
+
+    private var achievementSection: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "trophy.fill")
+                .foregroundColor(.yellow)
+                .font(.caption)
+
+            Text("Achievements: \(achievementManager.totalUnlocked)/\(achievementManager.achievements.count)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            // Show recently unlocked badge
+            if !achievementManager.recentlyUnlocked.isEmpty {
+                let latest = achievementManager.recentlyUnlocked.last
+                Text(latest?.icon ?? "")
+                    .font(.caption2)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color.yellow.opacity(0.05))
+        .onTapGesture {
+            // Open achievements
+            NotificationCenter.default.post(name: .showAchievements, object: nil)
+        }
+    }
+
+    private var confettiCelebration: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                Text("🎉")
+                    .font(.system(size: 64))
+
+                Text("You Touched Grass!")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+
+                Text("We're so proud of you.")
+                    .font(.headline)
+                    .foregroundColor(.white.opacity(0.8))
+            }
+            .padding(32)
+            .background(Color.black.opacity(0.8))
+            .cornerRadius(20)
+            .shadow(radius: 20)
+
+            ConfettiView(isActive: $achievementManager.showConfetti)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func checkAchievementsOnAppear() {
+        let taxPaymentCount = UserDefaults.standard.integer(forKey: "sunlightTax.taxPaymentCount")
+
+        achievementManager.checkAchievements(
+            timeInDarkness: taxManager.timeInDarkness,
+            totalTaxPaid: taxManager.totalTaxPaid,
+            taxPaymentCount: taxPaymentCount,
+            lastSunlightDate: taxManager.lastSunlightDate,
+            isTaxed: taxManager.taxStatus == .taxed
+        )
+    }
+
     private var actionsSection: some View {
         VStack(spacing: 8) {
             if taxManager.taxStatus == .taxed {
@@ -386,6 +471,7 @@ struct StatItem: View {
 extension Notification.Name {
     static let showPremium = Notification.Name("showPremium")
     static let showSettings = Notification.Name("showSettings")
+    static let showAchievements = Notification.Name("showAchievements")
 }
 
 struct MenuPopoverView_Previews: PreviewProvider {

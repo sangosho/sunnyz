@@ -219,10 +219,13 @@ final class SettingsManager: ObservableObject {
         for key in statsKeys {
             UserDefaults.standard.removeObject(forKey: key)
         }
-        
+
         // Reset notification state
         NotificationManager.shared.resetNotificationState()
-        
+
+        // Reset achievements
+        AchievementManager.shared.resetAchievements()
+
         // Post notification that stats were reset
         NotificationCenter.default.post(name: .statsReset, object: nil)
     }

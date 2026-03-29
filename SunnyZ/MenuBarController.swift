@@ -11,23 +11,35 @@ import Combine
 
 @MainActor
 final class MenuBarController: NSObject, ObservableObject {
-    
+
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
     private var taxManager: SunlightTaxManager!
     private var cancellables = Set<AnyCancellable>()
-    
+    private var achievementManager = AchievementManager.shared
+
+    // Easter egg tracking
+    private var menuClickCount = 0
+    private var menuClickTimer: Timer?
+    private var konamiIndex = 0
+    private let konamiCode: [NSEvent.SpecialKey] = [
+        .upArrow, .upArrow, .downArrow, .downArrow,
+        .leftArrow, .rightArrow, .leftArrow, .rightArrow,
+        .keyB, .keyA
+    ]
+
     override init() {
         super.init()
         setupMenuBar()
+        setupEasterEggMonitor()
     }
     
     private func setupMenuBar() {
         taxManager = SunlightTaxManager()
-        
+
         // Create status item
         statusItem = NSStatusBar.shared.statusItem(withLength: NSStatusItem.variableLength)
-        
+
         if let button = statusItem.button {
             button.image = NSImage(
                 systemSymbolName: "sun.max.fill",
@@ -69,26 +81,140 @@ final class MenuBarController: NSObject, ObservableObject {
                 self?.handleLuxChange(lux: lux)
             }
             .store(in: &cancellables)
+
+        // Subscribe to tax payments to track achievements
+        taxManager.$totalTaxPaid
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.checkAchievements()
+            }
+            .store(in: &cancellables)
+
+        // Listen for show achievements notification
+        NotificationCenter.default.publisher(for: .showAchievements)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.showAchievements()
+            }
+            .store(in: &cancellables)
     }
-    
+
+    private func setupEasterEggMonitor() {
+        // Monitor for Konami code via NSEvent
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.handleKeyEvent(event)
+            return event
+        }
+    }
+
+    private func handleKeyEvent(_ event: NSEvent) {
+        guard let specialKey = event.specialKey else { return }
+
+        if konamiIndex < konamiCode.count && specialKey == konamiCode[konamiIndex] {
+            konamiIndex += 1
+
+            // Check if Konami code complete
+            if konamiIndex == konamiCode.count {
+                triggerKonamiEasterEgg()
+                konamiIndex = 0
+            }
+        } else {
+            konamiIndex = 0
+        }
+    }
+
+    private func triggerKonamiEasterEgg() {
+        let alert = NSAlert()
+        alert.messageText = "🎮 Cheat Code Activated!"
+        alert.informativeText = "You know the classics! But there are no cheats for sunlight. Go outside."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    private func trackMenuClick() {
+        menuClickCount += 1
+
+        // Reset timer
+        menuClickTimer?.invalidate()
+        menuClickTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+            self?.menuClickCount = 0
+        }
+
+        // Check for rapid clicks
+        if menuClickCount >= 10 {
+            triggerRapidClickEasterEgg()
+            menuClickCount = 0
+        }
+    }
+
+    private func triggerRapidClickEasterEgg() {
+        let alert = NSAlert()
+        alert.messageText = "Are you okay?"
+        alert.informativeText = "You clicked the menu bar 10 times rapidly. Everything will be okay. Just... touch grass?"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "I'm fine")
+        alert.runModal()
+    }
+
+    private func checkAprilFoolsEasterEgg() {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.month, .day], from: Date())
+
+        if components.month == 4 && components.day == 1 {
+            // April 1st - special tax rate message
+            let alert = NSAlert()
+            alert.messageText = "🎉 April Fools!"
+            alert.informativeText = "Today's special: 100% discount on the sunlight tax! (Not really, you still have to pay)"
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "😐")
+            alert.runModal()
+        }
+    }
+
+    private func checkAchievements() {
+        let taxPaymentCount = UserDefaults.standard.integer(forKey: "sunlightTax.taxPaymentCount")
+
+        achievementManager.checkAchievements(
+            timeInDarkness: taxManager.timeInDarkness,
+            totalTaxPaid: taxManager.totalTaxPaid,
+            taxPaymentCount: taxPaymentCount,
+            lastSunlightDate: taxManager.lastSunlightDate,
+            isTaxed: taxManager.taxStatus == .taxed
+        )
+    }
+
     private func checkNotifications(timeInDarkness: TimeInterval) {
         NotificationManager.shared.checkAndSendWarnings(
             timeInDarkness: timeInDarkness,
             taxThreshold: taxManager.taxThreshold,
             taxStatus: taxManager.taxStatus
         )
+
+        // Track night owl activity
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour >= 22 || hour < 6 {
+            achievementManager.trackNightOwlActivity()
+        }
     }
     
     private var lastLuxWasSunlight = false
-    
+
     private func handleLuxChange(lux: Double) {
         let isSunlight = lux >= taxManager.sunlightThreshold
-        
-        // Reset notification state when going from darkness to sunlight
+
+        // Reset notification state and trigger achievements when going from darkness to sunlight
         if isSunlight && !lastLuxWasSunlight {
             NotificationManager.shared.resetNotificationState()
+
+            // Handle going outside for achievements
+            achievementManager.handleWentOutside(timeInDarkness: taxManager.timeInDarkness)
+            checkAchievements()
+
+            // Check April Fools easter egg
+            checkAprilFoolsEasterEgg()
         }
-        
+
         lastLuxWasSunlight = isSunlight
     }
     
@@ -104,6 +230,8 @@ final class MenuBarController: NSObject, ObservableObject {
     }
     
     @objc private func togglePopover() {
+        trackMenuClick()
+
         if let button = statusItem.button {
             if popover.isShown {
                 popover.performClose(nil)
@@ -165,5 +293,20 @@ final class MenuBarController: NSObject, ObservableObject {
             rootView: SettingsView(taxManager: taxManager)
         )
         settingsWindow.makeKeyAndOrderFront(nil)
+    }
+
+    func showAchievements() {
+        let achievementsWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 540, height: 580),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        achievementsWindow.title = "Achievements"
+        achievementsWindow.center()
+        achievementsWindow.contentView = NSHostingView(
+            rootView: AchievementsView()
+        )
+        achievementsWindow.makeKeyAndOrderFront(nil)
     }
 }
