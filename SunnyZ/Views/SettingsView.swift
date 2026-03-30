@@ -113,10 +113,12 @@ struct SettingsView: View {
         // Reset timer if already running
         versionClickTimer?.invalidate()
         
-        // Start new timer to reset count after 3 seconds
-        versionClickTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [self] _ in
+        // Start new timer to reset count after 3 seconds.
+        // Capture versionClickCount binding directly since SettingsView is a struct.
+        let countBinding = _versionClickCount
+        versionClickTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
             Task { @MainActor in
-                versionClickCount = 0
+                countBinding.wrappedValue = 0
             }
         }
         

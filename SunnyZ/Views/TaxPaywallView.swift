@@ -139,15 +139,9 @@ struct TaxPaywallView: View {
                 try await taxManager.payTax()
                 dismissWindow()
                 
-                // Small delay
-                try await Task.sleep(for: .milliseconds(100))
-                
-                let alert = NSAlert()
-                alert.messageText = "Tax Paid! ✅"
-                alert.informativeText = "Brightness restored for 1 hour."
-                alert.alertStyle = .informational
-                alert.addButton(withTitle: "Great")
-                alert.runModal()
+                // Brief delay for window close animation
+                try await Task.sleep(for: .milliseconds(200))
+                PaymentBannerController.show(.taxPayment)
             } catch {
                 // Handle error
             }

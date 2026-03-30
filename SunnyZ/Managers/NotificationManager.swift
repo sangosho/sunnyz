@@ -176,6 +176,10 @@ final class NotificationManager: NSObject, ObservableObject {
         )
     }
     
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
     @objc private func handleTaxThresholdChange() {
         // Reset warning states when threshold changes
         resetNotificationState()

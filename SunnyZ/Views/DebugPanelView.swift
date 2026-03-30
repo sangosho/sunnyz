@@ -231,6 +231,39 @@ struct DebugPanelView: View {
                     .buttonStyle(.bordered)
                 }
                 
+                Divider()
+                
+                // Simulate payment flows
+                Text("Simulate Payments:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                HStack(spacing: 8) {
+                    Button {
+                        Task { @MainActor in
+                            try? await taxManager.payTax()
+                            PaymentBannerController.show(.taxPayment)
+                        }
+                    } label: {
+                        Label("Pay Tax ($0.99)", systemImage: "creditcard.fill")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+                    
+                    Button {
+                        Task { @MainActor in
+                            try? await taxManager.purchasePremium()
+                            PaymentBannerController.show(.premiumSubscription)
+                        }
+                    } label: {
+                        Label("Go Premium ($4.99)", systemImage: "crown.fill")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.purple)
+                }
+                
                 // Editable time in darkness
                 HStack {
                     Text("Time in Darkness (seconds):")
@@ -324,7 +357,7 @@ struct DebugPanelView: View {
                         Image(systemName: "info.circle.fill")
                             .foregroundColor(.blue)
                             .font(.caption)
-                        Text("Running via swift run — notifications shown as in-app alerts.")
+                        Text("Running via swift run — shown as simulated notification banners.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -339,7 +372,7 @@ struct DebugPanelView: View {
                         sendDebugNotification(
                             title: "Sunlight Tax Warning",
                             body: "You've got 30 minutes before your cave-dwelling costs you.",
-                            fallbackEmoji: "⏰"
+                            icon: "exclamationmark.triangle.fill"
                         )
                     } label: {
                         Label("Warning", systemImage: "exclamationmark.triangle")
@@ -351,7 +384,7 @@ struct DebugPanelView: View {
                         sendDebugNotification(
                             title: "Sunlight Tax Applied!",
                             body: "Your screen brightness has been reduced to 50%. Pay $0.99 to restore.",
-                            fallbackEmoji: "💸"
+                            icon: "dollarsign.circle.fill"
                         )
                     } label: {
                         Label("Tax Applied", systemImage: "dollarsign.circle")
@@ -367,7 +400,7 @@ struct DebugPanelView: View {
                         sendDebugNotification(
                             title: "Daily Cave Report",
                             body: "\(status) Today: \(time) in darkness | Total tax paid: \(tax)",
-                            fallbackEmoji: "🌅"
+                            icon: "chart.bar.fill"
                         )
                     } label: {
                         Label("Daily Summary", systemImage: "chart.bar")
@@ -378,9 +411,9 @@ struct DebugPanelView: View {
                     Button {
                         let message = snarkManager.getSnarkyMessage()
                         sendDebugNotification(
-                            title: "Snarky Reminder",
+                            title: "Go Outside Reminder",
                             body: message,
-                            fallbackEmoji: snarkManager.snarkLevel.emoji
+                            icon: "text.bubble.fill"
                         )
                     } label: {
                         Label("Snarky Reminder", systemImage: "text.bubble")
@@ -398,12 +431,11 @@ struct DebugPanelView: View {
         .groupBoxStyle(DebugGroupBoxStyle())
     }
     
-    /// Sends a real notification if available, otherwise shows an in-app NSAlert
-    private func sendDebugNotification(title: String, body: String, fallbackEmoji: String) {
+    /// Sends a real OS notification if available, otherwise shows a simulated floating banner
+    private func sendDebugNotification(title: String, body: String, icon: String) {
         if canUseRealNotifications {
-            // Use the real notification system
             let content = UNMutableNotificationContent()
-            content.title = "🧪 Test: \(title)"
+            content.title = title
             content.body = body
             content.sound = .default
             
@@ -414,13 +446,14 @@ struct DebugPanelView: View {
             )
             UNUserNotificationCenter.current().add(request)
         } else {
-            // Fallback: show an in-app alert that mimics a notification
-            let alert = NSAlert()
-            alert.messageText = "\(fallbackEmoji) \(title)"
-            alert.informativeText = body
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "OK")
-            alert.runModal()
+            // Show as a floating notification banner (mimics real macOS notification)
+            NotificationBannerController.show(
+                NotificationBannerInfo(
+                    title: title,
+                    body: body,
+                    icon: icon
+                )
+            )
         }
     }
     

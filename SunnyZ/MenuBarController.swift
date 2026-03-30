@@ -319,6 +319,12 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
         }
     }
     
+    func closePopover() {
+        if popover.isShown {
+            popover.performClose(nil)
+        }
+    }
+    
     func showPopover() {
         if let button = statusItem.button, !popover.isShown {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -471,8 +477,9 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
         // Invalidate and recreate display service
         displayReconnectionTimer?.invalidate()
         displayReconnectionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+            guard let self else { return }
             Task { @MainActor in
-                self?.taxManager.refreshDisplayConnection()
+                self.taxManager.refreshDisplayConnection()
             }
         }
     }

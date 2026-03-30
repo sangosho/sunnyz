@@ -411,13 +411,7 @@ struct MenuPopoverView: View {
         Task { @MainActor in
             do {
                 try await taxManager.payTax()
-
-                let alert = NSAlert()
-                alert.messageText = "Tax Paid! 💸"
-                alert.informativeText = "Brightness restored for 1 hour. Your cave-dwelling privileges have been temporarily extended."
-                alert.alertStyle = .informational
-                alert.addButton(withTitle: "OK")
-                alert.runModal()
+                PaymentBannerController.show(.taxPayment)
             } catch {
                 // Optionally handle error
             }
@@ -426,7 +420,7 @@ struct MenuPopoverView: View {
     
     private func showPremium() {
         // Close popover and open premium window
-        NSApp.sendAction(Selector(("performClose:")), to: nil, from: nil)
+        MenuBarController.shared.closePopover()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationCenter.default.post(name: .showPremium, object: nil)
@@ -435,7 +429,7 @@ struct MenuPopoverView: View {
     
     private func showSettings() {
         // Close popover and open settings window
-        NSApp.sendAction(Selector(("performClose:")), to: nil, from: nil)
+        MenuBarController.shared.closePopover()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationCenter.default.post(name: .showSettings, object: nil)

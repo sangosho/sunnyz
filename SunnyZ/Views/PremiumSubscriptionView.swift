@@ -194,18 +194,11 @@ struct PremiumSubscriptionView: View {
             
             do {
                 try await taxManager.purchasePremium()
-                
                 dismissWindow()
                 
-                // Small delay to let window close first
-                try await Task.sleep(for: .milliseconds(100))
-                
-                let alert = NSAlert()
-                alert.messageText = "Welcome to Premium! 👑"
-                alert.informativeText = "You're now a certified cave dweller."
-                alert.alertStyle = .informational
-                alert.addButton(withTitle: "Awesome")
-                alert.runModal()
+                // Brief delay for window close animation
+                try await Task.sleep(for: .milliseconds(200))
+                PaymentBannerController.show(.premiumSubscription)
             } catch {
                 // Handle error
             }

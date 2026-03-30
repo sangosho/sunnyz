@@ -187,6 +187,10 @@ final class SnarkManager: ObservableObject {
         )
     }
     
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
     // MARK: - Message Generation
     
     /// Gets a snarky message appropriate for the current level
