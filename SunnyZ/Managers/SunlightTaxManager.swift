@@ -97,9 +97,10 @@ final class SunlightTaxManager: ObservableObject {
     private var darknessStartTime: Date?
     private var timer: Timer?
     private var displayService: io_object_t = 0
+    private var taxReliefWorkItem: DispatchWorkItem?
     
     private let settings = SettingsManager.shared
-    private let luxSensor = LuxSensorManager()
+    private let luxSensor = LuxSensorManager.shared
     
     private let kTotalTaxPaid = "sunlightTax.totalPaid"
     private let kLastSunlightDate = "sunlightTax.lastSunlight"
@@ -205,12 +206,14 @@ final class SunlightTaxManager: ObservableObject {
     func stopMonitoring() {
         timer?.invalidate()
         timer = nil
+        taxReliefWorkItem?.cancel()
+        taxReliefWorkItem = nil
         saveState()
     }
     
     private func updateSunlightStatus() {
         // Use LuxSensorManager for readings
-        let lux = luxSensor.currentLux
+        let lux = luxSensor.readLux()
         currentLux = lux
         luxAccuracy = luxSensor.accuracy
         currentDisplayBrightness = getDisplayBrightness()
@@ -282,6 +285,8 @@ final class SunlightTaxManager: ObservableObject {
         darknessStartTime = nil
         timeInDarkness = 0
         brightnessLimit = 1.0
+        taxReliefWorkItem?.cancel()
+        taxReliefWorkItem = nil
         
         UserDefaults.standard.removeObject(forKey: kTotalTaxPaid)
         UserDefaults.standard.removeObject(forKey: kHasPremium)
@@ -327,6 +332,17 @@ final class SunlightTaxManager: ObservableObject {
     
     // MARK: - StoreKit
     
+    private func scheduleTaxReliefExpiry() {
+        // Cancel any existing tax relief timer
+        taxReliefWorkItem?.cancel()
+        
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.updateTaxStatus()
+        }
+        taxReliefWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3600, execute: workItem)
+    }
+    
     /// In debug mode, simulates a payment without touching StoreKit.
     /// Shows a convincing "processing" animation but no real charge.
     func payTax() async throws {
@@ -339,9 +355,7 @@ final class SunlightTaxManager: ObservableObject {
             UserDefaults.standard.set(totalTaxPaid, forKey: kTotalTaxPaid)
             AchievementManager.shared.handleTaxPayment()
             // Tax relief expires after 1 hour (same as real)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3600) { [weak self] in
-                self?.updateTaxStatus()
-            }
+            scheduleTaxReliefExpiry()
             return
         }
         
@@ -355,9 +369,7 @@ final class SunlightTaxManager: ObservableObject {
         AchievementManager.shared.handleTaxPayment()
 
         // Temporary tax relief - reset after 1 hour
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3600) { [weak self] in
-            self?.updateTaxStatus()
-        }
+        scheduleTaxReliefExpiry()
     }
     
     /// In debug mode, simulates premium purchase without touching StoreKit.
@@ -464,6 +476,7 @@ final class SunlightTaxManager: ObservableObject {
     
     /// Forces the tax status to a specific value (debug only)
     func forceTaxStatus(_ status: TaxStatus) {
+        #if DEBUG
         guard debugModeEnabled else { return }
         taxStatus = status
         if status == .taxed {
@@ -471,33 +484,40 @@ final class SunlightTaxManager: ObservableObject {
         } else {
             brightnessLimit = 1.0
         }
+        #endif
     }
     
     /// Forces the time in darkness to a specific duration (debug only)
     func forceTimeInDarkness(_ duration: TimeInterval) {
+        #if DEBUG
         guard debugModeEnabled else { return }
         timeInDarkness = duration
         darknessStartTime = Date().addingTimeInterval(-duration)
         UserDefaults.standard.set(darknessStartTime, forKey: kDarknessStartTime)
         updateTaxStatus()
+        #endif
     }
     
     /// Resets the darkness timer (debug only)
     func resetDarknessTimer() {
+        #if DEBUG
         guard debugModeEnabled else { return }
         darknessStartTime = nil
         timeInDarkness = 0
         UserDefaults.standard.removeObject(forKey: kDarknessStartTime)
         brightnessLimit = 1.0
         updateTaxStatus()
+        #endif
     }
     
     /// Sets the time acceleration multiplier (debug only)
     func setTimeAcceleration(_ multiplier: Double) {
+        #if DEBUG
         guard debugModeEnabled else { return }
         timeAcceleration = max(1.0, multiplier)
         // Restart timer with new interval
         stopMonitoring()
         startMonitoring()
+        #endif
     }
 }

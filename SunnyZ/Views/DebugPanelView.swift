@@ -12,12 +12,12 @@ import UserNotifications
 struct DebugPanelView: View {
     
     // MARK: - Managers
-    @StateObject private var settings = SettingsManager.shared
-    @StateObject private var luxManager = LuxSensorManager.shared
-    @StateObject private var taxManager = SunlightTaxManager.shared
-    @StateObject private var achievementManager = AchievementManager.shared
-    @StateObject private var notificationManager = NotificationManager.shared
-    @StateObject private var snarkManager = SnarkManager.shared
+    @ObservedObject private var settings = SettingsManager.shared
+    @ObservedObject private var luxManager = LuxSensorManager.shared
+    @ObservedObject private var taxManager = SunlightTaxManager.shared
+    @ObservedObject private var achievementManager = AchievementManager.shared
+    @ObservedObject private var notificationManager = NotificationManager.shared
+    @ObservedObject private var snarkManager = SnarkManager.shared
     
     // MARK: - Lux Simulator State
     @State private var luxSliderValue: Double = 200
@@ -258,7 +258,7 @@ struct DebugPanelView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Text(taxManager.taxStatus.icon)
-                    Text("\(taxManager.taxStatus)")
+                    Text(taxManager.taxStatus.description)
                         .font(.caption)
                         .fontWeight(.medium)
                     Spacer()
@@ -311,12 +311,36 @@ struct DebugPanelView: View {
     
     // MARK: - Notification Testing Section
     
+    /// Whether real OS notifications are available (requires .app bundle)
+    private var canUseRealNotifications: Bool {
+        Bundle.main.bundlePath.hasSuffix(".app")
+    }
+    
     private var notificationTestingSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
+                if !canUseRealNotifications {
+                    HStack(spacing: 6) {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundColor(.blue)
+                            .font(.caption)
+                        Text("Running via swift run — notifications shown as in-app alerts.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.blue.opacity(0.08))
+                    .cornerRadius(6)
+                }
+                
                 FlowLayout(spacing: 8) {
                     Button {
-                        notificationManager.sendTestWarningNotification()
+                        sendDebugNotification(
+                            title: "Sunlight Tax Warning",
+                            body: "You've got 30 minutes before your cave-dwelling costs you.",
+                            fallbackEmoji: "⏰"
+                        )
                     } label: {
                         Label("Warning", systemImage: "exclamationmark.triangle")
                             .font(.caption)
@@ -324,7 +348,11 @@ struct DebugPanelView: View {
                     .buttonStyle(.bordered)
                     
                     Button {
-                        notificationManager.sendTestTaxAppliedNotification()
+                        sendDebugNotification(
+                            title: "Sunlight Tax Applied!",
+                            body: "Your screen brightness has been reduced to 50%. Pay $0.99 to restore.",
+                            fallbackEmoji: "💸"
+                        )
                     } label: {
                         Label("Tax Applied", systemImage: "dollarsign.circle")
                             .font(.caption)
@@ -333,7 +361,14 @@ struct DebugPanelView: View {
                     .tint(.red)
                     
                     Button {
-                        notificationManager.sendTestDailySummary()
+                        let status = taxManager.taxStatus.icon
+                        let time = taxManager.formattedTimeInDarkness
+                        let tax = taxManager.formattedTotalTax
+                        sendDebugNotification(
+                            title: "Daily Cave Report",
+                            body: "\(status) Today: \(time) in darkness | Total tax paid: \(tax)",
+                            fallbackEmoji: "🌅"
+                        )
                     } label: {
                         Label("Daily Summary", systemImage: "chart.bar")
                             .font(.caption)
@@ -341,7 +376,12 @@ struct DebugPanelView: View {
                     .buttonStyle(.bordered)
                     
                     Button {
-                        snarkManager.sendTestReminder()
+                        let message = snarkManager.getSnarkyMessage()
+                        sendDebugNotification(
+                            title: "Snarky Reminder",
+                            body: message,
+                            fallbackEmoji: snarkManager.snarkLevel.emoji
+                        )
                     } label: {
                         Label("Snarky Reminder", systemImage: "text.bubble")
                             .font(.caption)
@@ -356,6 +396,32 @@ struct DebugPanelView: View {
                 .foregroundColor(debugAccentColor)
         }
         .groupBoxStyle(DebugGroupBoxStyle())
+    }
+    
+    /// Sends a real notification if available, otherwise shows an in-app NSAlert
+    private func sendDebugNotification(title: String, body: String, fallbackEmoji: String) {
+        if canUseRealNotifications {
+            // Use the real notification system
+            let content = UNMutableNotificationContent()
+            content.title = "🧪 Test: \(title)"
+            content.body = body
+            content.sound = .default
+            
+            let request = UNNotificationRequest(
+                identifier: "sunnyz.debug.\(UUID().uuidString)",
+                content: content,
+                trigger: nil
+            )
+            UNUserNotificationCenter.current().add(request)
+        } else {
+            // Fallback: show an in-app alert that mimics a notification
+            let alert = NSAlert()
+            alert.messageText = "\(fallbackEmoji) \(title)"
+            alert.informativeText = body
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
     }
     
     // MARK: - Time Acceleration Section

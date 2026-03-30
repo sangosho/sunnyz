@@ -28,12 +28,6 @@ final class SettingsManagerTests: XCTestCase {
     
     // MARK: - Default Value Tests
     
-    func testDefaultNotificationSettings() async throws {
-        XCTAssertTrue(settings.notificationsEnabled)
-        XCTAssertTrue(settings.warningNotificationsEnabled)
-        XCTAssertTrue(settings.dailySummaryEnabled)
-    }
-    
     func testDefaultTaxSettings() async throws {
         XCTAssertEqual(settings.taxThresholdHours, .fourHours)
         XCTAssertTrue(settings.showCountdownInMenuBar)

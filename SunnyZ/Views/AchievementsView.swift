@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AchievementsView: View {
-    @StateObject private var achievementManager = AchievementManager.shared
+    @ObservedObject private var achievementManager = AchievementManager.shared
     @State private var selectedCategory: AchievementCategory = .all
     @State private var showingShareSheet = false
     @State private var shareText = ""
@@ -45,7 +45,7 @@ struct AchievementsView: View {
                 .padding()
             }
         }
-        .frame(width: 540, height: 580)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $showingShareSheet) {
             shareSheet
         }

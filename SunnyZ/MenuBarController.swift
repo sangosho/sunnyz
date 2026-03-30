@@ -12,6 +12,8 @@ import SwiftUI
 @MainActor
 final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
 
+    static let shared = MenuBarController()
+
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
     private var hostingController: NSHostingController<MenuPopoverView>?
@@ -19,11 +21,12 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var achievementManager = AchievementManager.shared
 
-    // Window references to prevent crash on close
-    private var settingsWindow: NSWindow?
-    private var premiumWindow: NSWindow?
-    private var paywallWindow: NSWindow?
-    private var achievementsWindow: NSWindow?
+    // Weak window references — when a window is closed and deallocated,
+    // the weak reference automatically nils out, preventing dangling pointers.
+    private weak var settingsWindow: NSWindow?
+    private weak var premiumWindow: NSWindow?
+    private weak var paywallWindow: NSWindow?
+    private weak var achievementsWindow: NSWindow?
 
     // Easter egg tracking
     private var menuClickCount = 0
@@ -34,6 +37,7 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
         "Left", "Right", "Left", "Right",
         "b", "a"
     ]
+    private var eventMonitor: Any?
 
     override init() {
         super.init()
@@ -45,6 +49,9 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
     deinit {
         displayReconnectionTimer?.invalidate()
         menuClickTimer?.invalidate()
+        if let monitor = eventMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
         cancellables.removeAll()
     }
     
@@ -134,8 +141,8 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
     }
 
     private func setupEasterEggMonitor() {
-        // Monitor for Konami code via NSEvent
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        // Monitor for Konami code via NSEvent; store the token so we can remove it in deinit
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.handleKeyEvent(event)
             return event
         }
@@ -332,6 +339,7 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
             backing: .buffered,
             defer: false
         )
+        window.isReleasedWhenClosed = false
         window.title = "Pay Sunlight Tax"
         window.center()
         window.contentView = NSHostingView(
@@ -356,6 +364,7 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
             backing: .buffered,
             defer: false
         )
+        window.isReleasedWhenClosed = false
         window.title = "Premium Subscription"
         window.center()
         window.contentView = NSHostingView(
@@ -380,6 +389,7 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
             backing: .buffered,
             defer: false
         )
+        window.isReleasedWhenClosed = false
         window.title = "SunnyZ Settings"
         window.center()
         window.contentView = NSHostingView(
@@ -404,6 +414,7 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
             backing: .buffered,
             defer: false
         )
+        window.isReleasedWhenClosed = false
         window.title = "Achievements"
         window.center()
         window.contentView = NSHostingView(
@@ -469,8 +480,8 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
     // MARK: - NSPopoverDelegate
 
     func popoverDidClose(_ notification: Notification) {
-        // Release hosting controller to prevent memory issues
-        hostingController = nil
+        // Intentionally left empty: hostingController is kept alive so the
+        // popover has a valid contentViewController on next open.
     }
 }
 
@@ -478,22 +489,8 @@ final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
 
 extension MenuBarController: NSWindowDelegate {
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        // Clear content view first to stop SwiftUI rendering
-        sender.contentView = nil
-
-        // Defer clearing the reference to allow CA to clean up
-        DispatchQueue.main.async { [weak self] in
-            if sender === self?.settingsWindow {
-                self?.settingsWindow = nil
-            } else if sender === self?.premiumWindow {
-                self?.premiumWindow = nil
-            } else if sender === self?.paywallWindow {
-                self?.paywallWindow = nil
-            } else if sender === self?.achievementsWindow {
-                self?.achievementsWindow = nil
-            }
-        }
-
-        return true // Allow close
+        // Window references are weak, so they nil automatically when the
+        // window deallocates. No manual cleanup needed.
+        return true
     }
 }

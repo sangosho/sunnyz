@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @StateObject private var settings = SettingsManager.shared
-    @StateObject private var notificationManager = NotificationManager.shared
+    @ObservedObject private var settings = SettingsManager.shared
+    @ObservedObject private var notificationManager = NotificationManager.shared
     @ObservedObject var taxManager: SunlightTaxManager
     
     @State private var selectedTab: SettingsTab = .notifications
@@ -26,6 +26,9 @@ struct SettingsView: View {
         case taxSettings = "Tax Settings"
         case achievements = "Achievements"
         case about = "About"
+        #if DEBUG
+        case debug = "Debug"
+        #endif
 
         var id: String { rawValue }
 
@@ -35,6 +38,9 @@ struct SettingsView: View {
             case .taxSettings: return "dollarsign.circle.fill"
             case .achievements: return "trophy.fill"
             case .about: return "info.circle.fill"
+            #if DEBUG
+            case .debug: return "ladybug.fill"
+            #endif
             }
         }
     }
@@ -65,6 +71,10 @@ struct SettingsView: View {
                             onDebugModeChange: { settings.debugModeEnabled = $0 },
                             onOpenDebugPanel: { showingDebugPanel = true }
                         )
+                    #if DEBUG
+                    case .debug:
+                        DebugPanelView()
+                    #endif
                     }
                 }
                 .padding()
@@ -79,9 +89,11 @@ struct SettingsView: View {
         } message: {
             Text("This will clear all your tax payment history, darkness time, and achievements. This action cannot be undone.")
         }
+        #if DEBUG
         .sheet(isPresented: $showingDebugPanel) {
             DebugPanelView()
         }
+        #endif
         .onDisappear {
             invalidateTimers()
             // Force SwiftUI to clean up any pending animations
@@ -92,26 +104,20 @@ struct SettingsView: View {
         }
     }
     
-    // MARK: - Window Management
-
-    private func dismissWindow() {
-        // Find the parent window and close it properly
-        if let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isKeyWindow }) {
-            window.close()
-        }
-    }
-    
     // MARK: - Easter Egg Handler
     
     private func handleVersionTap() {
+        #if DEBUG
         versionClickCount += 1
         
         // Reset timer if already running
         versionClickTimer?.invalidate()
         
         // Start new timer to reset count after 3 seconds
-        versionClickTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
-            versionClickCount = 0
+        versionClickTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [self] _ in
+            Task { @MainActor in
+                versionClickCount = 0
+            }
         }
         
         // Enable debug mode after 5 clicks
@@ -124,6 +130,7 @@ struct SettingsView: View {
             let generator = NSHapticFeedbackManager.defaultPerformer
             generator.perform(.generic, performanceTime: .default)
         }
+        #endif
     }
     
     // MARK: - Cleanup
@@ -135,26 +142,16 @@ struct SettingsView: View {
     
     private var toolbar: some View {
         HStack(spacing: 0) {
-            // Tab buttons
-            HStack(spacing: 0) {
-                ForEach(SettingsTab.allCases) { tab in
-                    TabButton(
-                        tab: tab,
-                        isSelected: selectedTab == tab,
-                        action: { selectedTab = tab }
-                    )
-                }
+            ForEach(SettingsTab.allCases) { tab in
+                TabButton(
+                    tab: tab,
+                    isSelected: selectedTab == tab,
+                    action: { selectedTab = tab }
+                )
+                .frame(maxWidth: .infinity)
             }
-            
-            Spacer()
-            
-            // Done button
-            Button("Done") {
-                dismissWindow()
-            }
-            .keyboardShortcut(.defaultAction)
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 8)
         .padding(.vertical, 12)
         .background(Color(NSColor.controlBackgroundColor))
     }
@@ -174,8 +171,10 @@ struct TabButton: View {
                     .font(.system(size: 16))
                 Text(tab.rawValue)
                     .font(.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            .frame(width: 80)
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
             .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
             .foregroundColor(isSelected ? .accentColor : .secondary)
@@ -189,16 +188,16 @@ struct TabButton: View {
 // MARK: - Notifications Tab
 
 struct NotificationsTab: View {
-    @StateObject private var settings = SettingsManager.shared
-    @StateObject private var notificationManager = NotificationManager.shared
-    @StateObject private var snarkManager = SnarkManager.shared
+    @ObservedObject private var settings = SettingsManager.shared
+    @ObservedObject private var notificationManager = NotificationManager.shared
+    @ObservedObject private var snarkManager = SnarkManager.shared
     @State private var showingPreviewMessage = false
     @State private var previewMessage = ""
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 16) {
             // Master Toggle Section
-            VStack(alignment: .leading, spacing: 12) {
+            SettingsSection {
                 HStack {
                     Image(systemName: "bell.fill")
                         .foregroundColor(.orange)
@@ -215,23 +214,41 @@ struct NotificationsTab: View {
                     }
                 
                 if notificationManager.notificationsEnabled && !notificationManager.isAuthorized {
-                    HStack(spacing: 8) {
+                    HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.orange)
                             .font(.caption)
-                        Text("Permission denied. Enable in System Settings → Notifications.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        
+                        VStack(alignment: .leading, spacing: 6) {
+                            if !Bundle.main.bundlePath.hasSuffix(".app") {
+                                Text("Notifications require running from a .app bundle (not swift run).")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("Permission denied. Enable in System Settings → Notifications.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Button("Open Notification Settings") {
+                                    if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                        }
                     }
-                    .padding(.leading, 20)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.orange.opacity(0.08))
+                    .cornerRadius(8)
                 }
             }
             
             if notificationManager.notificationsEnabled {
-                Divider()
-                
                 // Warning Notifications
-                VStack(alignment: .leading, spacing: 12) {
+                SettingsSection {
                     Toggle("Warning Notifications", isOn: $notificationManager.warningNotificationsEnabled)
                     
                     if notificationManager.warningNotificationsEnabled {
@@ -249,14 +266,12 @@ struct NotificationsTab: View {
                                 text: "Tax applied notification"
                             )
                         }
-                        .padding(.leading, 20)
+                        .padding(.leading, 4)
                     }
                 }
                 
-                Divider()
-                
                 // Snarky Reminders Section
-                VStack(alignment: .leading, spacing: 16) {
+                SettingsSection {
                     HStack {
                         Image(systemName: "text.bubble.fill")
                             .foregroundColor(.purple)
@@ -283,7 +298,6 @@ struct NotificationsTab: View {
                                 }
                                 .pickerStyle(.segmented)
                             }
-                            .padding(.leading, 20)
                             
                             // Snark Level Slider
                             VStack(alignment: .leading, spacing: 8) {
@@ -308,43 +322,37 @@ struct NotificationsTab: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .padding(.leading, 20)
                             
-                            // Preview Button
-                            Button(action: showPreview) {
-                                HStack {
-                                    Image(systemName: "eye.fill")
-                                    Text("Preview Message")
+                            // Action buttons
+                            HStack(spacing: 8) {
+                                Button(action: showPreview) {
+                                    HStack {
+                                        Image(systemName: "eye.fill")
+                                        Text("Preview")
+                                    }
                                 }
-                            }
-                            .buttonStyle(.bordered)
-                            .padding(.leading, 20)
-                            
-                            // Test Button
-                            Button(action: sendTestReminder) {
-                                HStack {
-                                    Image(systemName: "bell.badge.fill")
-                                    Text("Send Test Reminder")
+                                .buttonStyle(.bordered)
+                                
+                                Button(action: sendTestReminder) {
+                                    HStack {
+                                        Image(systemName: "bell.badge.fill")
+                                        Text("Test Reminder")
+                                    }
                                 }
+                                .buttonStyle(.bordered)
+                                .tint(.purple)
+                                .disabled(!notificationManager.isAuthorized)
                             }
-                            .buttonStyle(.bordered)
-                            .tint(.purple)
-                            .padding(.leading, 20)
-                            .disabled(!notificationManager.isAuthorized)
                             
-                            // Info text
                             Text("Only shown when in darkness, paused when taxed")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                                .padding(.leading, 20)
                         }
                     }
                 }
                 
-                Divider()
-                
                 // Daily Summary
-                VStack(alignment: .leading, spacing: 12) {
+                SettingsSection {
                     Toggle("Daily Summary", isOn: $notificationManager.dailySummaryEnabled)
                     
                     if notificationManager.dailySummaryEnabled {
@@ -363,12 +371,10 @@ struct NotificationsTab: View {
                             
                             Spacer()
                         }
-                        .padding(.leading, 20)
                         
                         Text("Daily cave-dwelling report with stats and achievements")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        .padding(.leading, 20)
                     }
                 }
             }
@@ -410,17 +416,38 @@ struct NotificationFeatureRow: View {
     }
 }
 
+// MARK: - Settings Section Container
+
+/// Reusable grouped section with rounded background, matching macOS System Settings style
+struct SettingsSection<Content: View>: View {
+    let content: Content
+    
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            content
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(10)
+    }
+}
+
 // MARK: - Tax Settings Tab
 
 struct TaxSettingsTab: View {
     @ObservedObject var taxManager: SunlightTaxManager
-    @StateObject private var settings = SettingsManager.shared
+    @ObservedObject private var settings = SettingsManager.shared
     @State private var showingCalibration = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 16) {
             // Tax Threshold Section
-            VStack(alignment: .leading, spacing: 16) {
+            SettingsSection {
                 HStack {
                     Image(systemName: "dollarsign.circle.fill")
                         .foregroundColor(.red)
@@ -444,33 +471,31 @@ struct TaxSettingsTab: View {
                     // Threshold change is handled by the settings manager
                 }
                 
-                // Current threshold info
                 HStack {
-                    Text("Current setting:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(settings.formattedTaxThreshold)
-                        .font(.caption)
-                        .fontWeight(.medium)
+                    HStack(spacing: 4) {
+                        Text("Current:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(settings.formattedTaxThreshold)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    
                     Spacer()
-                }
-                
-                // Warning timing
-                HStack {
-                    Text("Warning at:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(formatWarningTime())
-                        .font(.caption)
-                        .fontWeight(.medium)
-                    Spacer()
+                    
+                    HStack(spacing: 4) {
+                        Text("Warning at:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(formatWarningTime())
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
                 }
             }
             
-            Divider()
-            
             // Menu Bar Display
-            VStack(alignment: .leading, spacing: 12) {
+            SettingsSection {
                 HStack {
                     Image(systemName: "menubar.rectangle")
                         .foregroundColor(.blue)
@@ -486,10 +511,8 @@ struct TaxSettingsTab: View {
                     .foregroundColor(.secondary)
             }
             
-            Divider()
-            
             // Brightness Limit Preview
-            VStack(alignment: .leading, spacing: 12) {
+            SettingsSection {
                 HStack {
                     Image(systemName: "sun.min.fill")
                         .foregroundColor(.yellow)
@@ -538,7 +561,7 @@ struct TaxSettingsTab: View {
 
 struct AboutTab: View {
     @ObservedObject var taxManager: SunlightTaxManager
-    @StateObject private var settings = SettingsManager.shared
+    @ObservedObject private var settings = SettingsManager.shared
     @Binding var showingResetConfirmation: Bool
     
     // MARK: - Debug Callbacks & State
@@ -548,9 +571,9 @@ struct AboutTab: View {
     let onOpenDebugPanel: () -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 16) {
             // App Info
-            VStack(alignment: .leading, spacing: 16) {
+            SettingsSection {
                 HStack(spacing: 16) {
                     // App Icon placeholder
                     ZStack {
@@ -587,10 +610,8 @@ struct AboutTab: View {
                     .foregroundColor(.secondary)
             }
             
-            Divider()
-            
             // Lux Sensor Info
-            VStack(alignment: .leading, spacing: 12) {
+            SettingsSection {
                 HStack {
                     Image(systemName: "light.max")
                         .foregroundColor(.yellow)
@@ -625,10 +646,8 @@ struct AboutTab: View {
                 }
             }
             
-            Divider()
-            
             // Stats Summary
-            VStack(alignment: .leading, spacing: 12) {
+            SettingsSection {
                 HStack {
                     Image(systemName: "chart.bar.fill")
                         .foregroundColor(.blue)
@@ -665,10 +684,8 @@ struct AboutTab: View {
                 }
             }
             
-            Divider()
-            
             // Launch at Login
-            VStack(alignment: .leading, spacing: 12) {
+            SettingsSection {
                 HStack {
                     Image(systemName: "power")
                         .foregroundColor(.green)
@@ -684,10 +701,8 @@ struct AboutTab: View {
                     .foregroundColor(.secondary)
             }
             
-            Divider()
-            
             // Reset Button
-            VStack(alignment: .leading, spacing: 12) {
+            SettingsSection {
                 HStack {
                     Image(systemName: "arrow.counterclockwise")
                         .foregroundColor(.red)
@@ -711,11 +726,10 @@ struct AboutTab: View {
                     .foregroundColor(.secondary)
             }
             
+            #if DEBUG
             // MARK: - Developer Section (Debug Mode)
             if debugModeEnabled {
-                Divider()
-                
-                VStack(alignment: .leading, spacing: 12) {
+                SettingsSection {
                     HStack {
                         Image(systemName: "ladybug.fill")
                             .foregroundColor(.orange)
@@ -748,6 +762,7 @@ struct AboutTab: View {
                     }
                 }
             }
+            #endif
         }
     }
     
@@ -778,6 +793,6 @@ struct AchievementsTabWrapper: View {
 
 struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
-        SettingsView(taxManager: SunlightTaxManager())
+        SettingsView(taxManager: SunlightTaxManager.shared)
     }
 }

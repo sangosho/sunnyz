@@ -262,6 +262,6 @@ struct TestimonialCard: View {
 
 struct PremiumSubscriptionView_Previews: PreviewProvider {
     static var previews: some View {
-        PremiumSubscriptionView(taxManager: SunlightTaxManager())
+        PremiumSubscriptionView(taxManager: SunlightTaxManager.shared)
     }
 }

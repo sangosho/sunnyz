@@ -38,8 +38,8 @@ struct SunnyZApp: App {
 
  @MainActor
  class AppDelegate: NSObject, NSApplicationDelegate {
-    var menuBarController: MenuBarController!
     private var sleepStartTime: Date?
+    private var notificationObservers: [NSObjectProtocol] = []
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide dock icon
@@ -51,39 +51,36 @@ struct SunnyZApp: App {
         // Setup notification manager
         setupNotifications()
         
-        // Setup menu bar
-        menuBarController = MenuBarController()
+        // Setup menu bar (triggers MenuBarController.shared lazy initialization)
+        _ = MenuBarController.shared
         
-        // Listen for premium window requests
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(showPremium),
-            name: .showPremium,
-            object: nil
+        // Use block-based observers that access the singleton directly.
+        // No reference to `self` is captured, so AppDelegate lifecycle
+        // changes from @NSApplicationDelegateAdaptor can't cause dangling pointers.
+        let nc = NotificationCenter.default
+        
+        notificationObservers.append(
+            nc.addObserver(forName: .showPremium, object: nil, queue: .main) { _ in
+                Task { @MainActor in MenuBarController.shared.showPremium() }
+            }
         )
         
-        // Listen for paywall requests from notifications
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(showPaywall),
-            name: .showPaywall,
-            object: nil
+        notificationObservers.append(
+            nc.addObserver(forName: .showPaywall, object: nil, queue: .main) { _ in
+                Task { @MainActor in MenuBarController.shared.showPaywall() }
+            }
         )
         
-        // Listen for menu show requests from notifications
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(showMenu),
-            name: .showMenu,
-            object: nil
+        notificationObservers.append(
+            nc.addObserver(forName: .showMenu, object: nil, queue: .main) { _ in
+                Task { @MainActor in MenuBarController.shared.showPopover() }
+            }
         )
         
-        // Listen for settings window requests
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(showSettings),
-            name: .showSettings,
-            object: nil
+        notificationObservers.append(
+            nc.addObserver(forName: .showSettings, object: nil, queue: .main) { _ in
+                Task { @MainActor in MenuBarController.shared.showSettings() }
+            }
         )
         
         // Setup sleep/wake notifications
@@ -116,27 +113,16 @@ struct SunnyZApp: App {
         }
     }
     
-    @objc private func showPremium() {
-        menuBarController.showPremium()
-    }
-    
-    @objc private func showPaywall() {
-        menuBarController.showPaywall()
-    }
-    
-    @objc private func showMenu() {
-        menuBarController.showPopover()
-    }
-    
-    @objc private func showSettings() {
-        menuBarController.showSettings()
-    }
-    
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false // Keep running in menu bar
     }
     
     func applicationWillTerminate(_ notification: Notification) {
+        // Remove block-based notification observers
+        for observer in notificationObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        notificationObservers.removeAll()
         print("[SunnyZ] App terminating")
     }
     
@@ -181,7 +167,7 @@ struct SunnyZApp: App {
         print("[SunnyZ] System going to sleep")
         sleepStartTime = Date()
         // Pause monitoring during sleep
-        menuBarController?.pauseMonitoring()
+        MenuBarController.shared.pauseMonitoring()
     }
     
     @objc private func systemDidWake() {
@@ -191,7 +177,7 @@ struct SunnyZApp: App {
             print("[SunnyZ] System slept for \(Int(sleepDuration/60)) minutes")
             // Don't count sleep time toward darkness - user couldn't have been in sunlight
             // Resume monitoring
-            menuBarController?.resumeMonitoring(sleepDuration: sleepDuration)
+            MenuBarController.shared.resumeMonitoring(sleepDuration: sleepDuration)
         }
         sleepStartTime = nil
     }
@@ -199,12 +185,12 @@ struct SunnyZApp: App {
     @objc private func screensDidSleep() {
         print("[SunnyZ] Screens going to sleep")
         // Pause UI updates but keep tracking
-        menuBarController?.pauseUIUpdates()
+        MenuBarController.shared.pauseUIUpdates()
     }
     
     @objc private func screensDidWake() {
         print("[SunnyZ] Screens woke up")
-        menuBarController?.resumeUIUpdates()
+        MenuBarController.shared.resumeUIUpdates()
     }
     
     // MARK: - System Time Change Handling

@@ -175,6 +175,6 @@ struct BenefitRow: View {
 
 struct TaxPaywallView_Previews: PreviewProvider {
     static var previews: some View {
-        TaxPaywallView(taxManager: SunlightTaxManager())
+        TaxPaywallView(taxManager: SunlightTaxManager.shared)
     }
 }

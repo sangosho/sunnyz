@@ -64,7 +64,6 @@ final class NotificationManager: NSObject, ObservableObject {
     private var pendingNotificationIDs: Set<String> = []
     private let notificationDedupInterval: TimeInterval = 5.0 // 5 second dedup window
     private var lastNotificationTimes: [String: Date] = [:]
-    private let notificationLock = NSLock()
     
     // MARK: - Constants
     
@@ -310,9 +309,6 @@ final class NotificationManager: NSObject, ObservableObject {
     
     /// Checks if a notification can be sent (not a duplicate within the dedup window)
     private func canSendNotification(id: String) -> Bool {
-        notificationLock.lock()
-        defer { notificationLock.unlock() }
-        
         // Check if there's a pending notification with this ID
         if pendingNotificationIDs.contains(id) {
             print("[SunnyZ] Notification dedup: \(id) already pending")
@@ -333,17 +329,12 @@ final class NotificationManager: NSObject, ObservableObject {
     
     /// Records that a notification has been sent
     private func recordNotificationSent(id: String) {
-        notificationLock.lock()
-        defer { notificationLock.unlock() }
-        
         pendingNotificationIDs.insert(id)
         lastNotificationTimes[id] = Date()
         
         // Clean up pending ID after dedup interval
         DispatchQueue.main.asyncAfter(deadline: .now() + notificationDedupInterval) { [weak self] in
-            self?.notificationLock.lock()
             self?.pendingNotificationIDs.remove(id)
-            self?.notificationLock.unlock()
         }
     }
     

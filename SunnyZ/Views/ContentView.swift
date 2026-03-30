@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var taxManager = SunlightTaxManager()
+    @ObservedObject private var taxManager = SunlightTaxManager.shared
     @State private var showingPaywall = false
     @State private var showingPremium = false
     

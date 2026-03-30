@@ -18,35 +18,6 @@ final class SettingsManager: ObservableObject {
     
     // MARK: - Published Settings
     
-    // MARK: Notifications
-    @Published var notificationsEnabled: Bool {
-        didSet { save(.notificationsEnabled, value: notificationsEnabled) }
-    }
-    
-    @Published var warningNotificationsEnabled: Bool {
-        didSet { save(.warningNotificationsEnabled, value: warningNotificationsEnabled) }
-    }
-    
-    @Published var dailySummaryEnabled: Bool {
-        didSet { 
-            save(.dailySummaryEnabled, value: dailySummaryEnabled)
-            if dailySummaryEnabled {
-                NotificationManager.shared.scheduleDailySummary()
-            } else {
-                NotificationManager.shared.cancelDailySummary()
-            }
-        }
-    }
-    
-    @Published var dailySummaryTime: Date {
-        didSet { 
-            save(.dailySummaryTime, value: dailySummaryTime)
-            if dailySummaryEnabled {
-                NotificationManager.shared.scheduleDailySummary()
-            }
-        }
-    }
-    
     // MARK: Tax Settings
     @Published var taxThresholdHours: TaxThreshold {
         didSet { 
@@ -84,7 +55,16 @@ final class SettingsManager: ObservableObject {
     // MARK: Debug Settings
     // NEW: Debug mode property for development/testing features
     @Published var debugModeEnabled: Bool {
-        didSet { save(.debugModeEnabled, value: debugModeEnabled) }
+        didSet {
+            #if DEBUG
+            save(.debugModeEnabled, value: debugModeEnabled)
+            #else
+            // In release builds, always force to false
+            if debugModeEnabled {
+                debugModeEnabled = false
+            }
+            #endif
+        }
     }
     
     // MARK: - Enums
@@ -117,10 +97,6 @@ final class SettingsManager: ObservableObject {
     // MARK: - UserDefaults Keys
     
     private enum Key: String {
-        case notificationsEnabled = "sunnyz.settings.notifications.enabled"
-        case warningNotificationsEnabled = "sunnyz.settings.notifications.warningEnabled"
-        case dailySummaryEnabled = "sunnyz.settings.notifications.dailySummaryEnabled"
-        case dailySummaryTime = "sunnyz.settings.notifications.dailySummaryTime"
         case taxThresholdHours = "sunnyz.settings.tax.thresholdHours"
         case showCountdownInMenuBar = "sunnyz.settings.tax.showCountdown"
         case luxCalibrationOffset = "sunnyz.settings.lux.calibrationOffset"
@@ -144,21 +120,6 @@ final class SettingsManager: ObservableObject {
     private init() {
         let defaults = UserDefaults.standard
         
-        // Load notification settings
-        self.notificationsEnabled = defaults.object(forKey: Key.notificationsEnabled.rawValue) as? Bool ?? true
-        self.warningNotificationsEnabled = defaults.object(forKey: Key.warningNotificationsEnabled.rawValue) as? Bool ?? true
-        self.dailySummaryEnabled = defaults.object(forKey: Key.dailySummaryEnabled.rawValue) as? Bool ?? true
-        
-        // Default summary time is 9 PM
-        if let savedTime = defaults.object(forKey: Key.dailySummaryTime.rawValue) as? Date {
-            self.dailySummaryTime = savedTime
-        } else {
-            var components = DateComponents()
-            components.hour = 21
-            components.minute = 0
-            self.dailySummaryTime = Calendar.current.date(from: components) ?? Date()
-        }
-        
         // Load tax settings
         if let thresholdRaw = defaults.object(forKey: Key.taxThresholdHours.rawValue) as? Int,
            let threshold = TaxThreshold(rawValue: thresholdRaw) {
@@ -177,8 +138,12 @@ final class SettingsManager: ObservableObject {
         // Load general settings
         self.launchAtLogin = defaults.object(forKey: Key.launchAtLogin.rawValue) as? Bool ?? false
         
-        // NEW: Load debug settings (default to false for production)
+        // NEW: Load debug settings (only in DEBUG builds; always false in release)
+        #if DEBUG
         self.debugModeEnabled = defaults.object(forKey: Key.debugModeEnabled.rawValue) as? Bool ?? false
+        #else
+        self.debugModeEnabled = false
+        #endif
         
         // Sync launch at login state with system
         updateLaunchAtLogin()
@@ -270,7 +235,9 @@ final class SettingsManager: ObservableObject {
     
     // NEW: Helper method to toggle debug mode on/off
     func toggleDebugMode() {
+        #if DEBUG
         debugModeEnabled.toggle()
+        #endif
     }
 }
 

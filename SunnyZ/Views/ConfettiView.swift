@@ -109,10 +109,6 @@ struct ConfettiParticleView: View {
             }
             .onDisappear {
                 isAnimating = false
-                // Reset animation state to prevent Core Animation issues
-                y = particle.y
-                rotation = particle.rotation
-                wobbleOffset = particle.wobbleOffset
             }
     }
 }

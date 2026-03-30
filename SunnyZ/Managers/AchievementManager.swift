@@ -165,8 +165,8 @@ final class AchievementManager: ObservableObject {
 
                 // Trigger confetti
                 showConfetti = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                    self.showConfetti = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                    self?.showConfetti = false
                 }
             }
         }

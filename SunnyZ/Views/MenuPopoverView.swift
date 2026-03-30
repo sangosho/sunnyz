@@ -9,8 +9,8 @@ import SwiftUI
 
 struct MenuPopoverView: View {
     @ObservedObject var taxManager: SunlightTaxManager
-    @StateObject private var snarkManager = SnarkManager.shared
-    @StateObject private var achievementManager = AchievementManager.shared
+    @ObservedObject private var snarkManager = SnarkManager.shared
+    @ObservedObject private var achievementManager = AchievementManager.shared
     @State private var showingPaywall = false
     @State private var showingPremium = false
     @State private var showingSettings = false
@@ -479,6 +479,6 @@ extension Notification.Name {
 
 struct MenuPopoverView_Previews: PreviewProvider {
     static var previews: some View {
-        MenuPopoverView(taxManager: SunlightTaxManager())
+        MenuPopoverView(taxManager: SunlightTaxManager.shared)
     }
 }
