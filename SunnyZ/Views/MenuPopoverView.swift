@@ -408,17 +408,20 @@ struct MenuPopoverView: View {
     }
     
     private func payTax() {
-        Task {
-            try? await taxManager.payTax()
+        Task { @MainActor in
+            do {
+                try await taxManager.payTax()
+
+                let alert = NSAlert()
+                alert.messageText = "Tax Paid! 💸"
+                alert.informativeText = "Brightness restored for 1 hour. Your cave-dwelling privileges have been temporarily extended."
+                alert.alertStyle = .informational
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            } catch {
+                // Optionally handle error
+            }
         }
-        
-        // Show confirmation
-        let alert = NSAlert()
-        alert.messageText = "Tax Paid! 💸"
-        alert.informativeText = "Brightness restored for 1 hour. Your cave-dwelling privileges have been temporarily extended."
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
     }
     
     private func showPremium() {

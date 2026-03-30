@@ -7,16 +7,23 @@
 
 import AppKit
 import SwiftUI
-import Combine
+@preconcurrency import Combine
 
 @MainActor
-final class MenuBarController: NSObject, ObservableObject {
+final class MenuBarController: NSObject, ObservableObject, NSPopoverDelegate {
 
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
+    private var hostingController: NSHostingController<MenuPopoverView>?
     private var taxManager: SunlightTaxManager!
     private var cancellables = Set<AnyCancellable>()
     private var achievementManager = AchievementManager.shared
+
+    // Window references to prevent crash on close
+    private var settingsWindow: NSWindow?
+    private var premiumWindow: NSWindow?
+    private var paywallWindow: NSWindow?
+    private var achievementsWindow: NSWindow?
 
     // Easter egg tracking
     private var menuClickCount = 0
@@ -34,13 +41,20 @@ final class MenuBarController: NSObject, ObservableObject {
         setupEasterEggMonitor()
     }
     
+    @MainActor
+    deinit {
+        displayReconnectionTimer?.invalidate()
+        menuClickTimer?.invalidate()
+        cancellables.removeAll()
+    }
+    
     private var isPaused = false
     private var isUIUpdatesPaused = false
     private var accumulatedSleepTime: TimeInterval = 0
     private var displayReconnectionTimer: Timer?
 
     private func setupMenuBar() {
-        taxManager = SunlightTaxManager()
+        taxManager = SunlightTaxManager.shared
 
         // Create status item
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -63,9 +77,11 @@ final class MenuBarController: NSObject, ObservableObject {
         popover = NSPopover()
         popover.contentSize = NSSize(width: 320, height: 450)
         popover.behavior = .transient
-        popover.contentViewController = NSHostingController(
+        popover.delegate = self
+        hostingController = NSHostingController(
             rootView: MenuPopoverView(taxManager: taxManager)
         )
+        popover.contentViewController = hostingController
         
         // Subscribe to status changes
         taxManager.$taxStatus
@@ -170,7 +186,9 @@ final class MenuBarController: NSObject, ObservableObject {
         // Reset timer
         menuClickTimer?.invalidate()
         menuClickTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
-            self?.menuClickCount = 0
+            Task { @MainActor in
+                self?.menuClickCount = 0
+            }
         }
 
         // Check for rapid clicks
@@ -302,67 +320,99 @@ final class MenuBarController: NSObject, ObservableObject {
     }
     
     func showPaywall() {
-        let paywallWindow = NSWindow(
+        if let existingWindow = paywallWindow {
+            existingWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 360, height: 420),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        paywallWindow.title = "Pay Sunlight Tax"
-        paywallWindow.center()
-        paywallWindow.contentView = NSHostingView(
+        window.title = "Pay Sunlight Tax"
+        window.center()
+        window.contentView = NSHostingView(
             rootView: TaxPaywallView(taxManager: taxManager)
         )
+        window.delegate = self
+        paywallWindow = window
         NSApp.activate(ignoringOtherApps: true)
-        paywallWindow.makeKeyAndOrderFront(nil)
+        window.makeKeyAndOrderFront(nil)
     }
     
     func showPremium() {
-        let premiumWindow = NSWindow(
+        if let existingWindow = premiumWindow {
+            existingWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 600),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        premiumWindow.title = "Premium Subscription"
-        premiumWindow.center()
-        premiumWindow.contentView = NSHostingView(
+        window.title = "Premium Subscription"
+        window.center()
+        window.contentView = NSHostingView(
             rootView: PremiumSubscriptionView(taxManager: taxManager)
         )
+        window.delegate = self
+        premiumWindow = window
         NSApp.activate(ignoringOtherApps: true)
-        premiumWindow.makeKeyAndOrderFront(nil)
+        window.makeKeyAndOrderFront(nil)
     }
     
     func showSettings() {
-        let settingsWindow = NSWindow(
+        if let existingWindow = settingsWindow {
+            existingWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 480, height: 520),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
-        settingsWindow.title = "SunnyZ Settings"
-        settingsWindow.center()
-        settingsWindow.contentView = NSHostingView(
+        window.title = "SunnyZ Settings"
+        window.center()
+        window.contentView = NSHostingView(
             rootView: SettingsView(taxManager: taxManager)
         )
+        window.delegate = self
+        settingsWindow = window
         NSApp.activate(ignoringOtherApps: true)
-        settingsWindow.makeKeyAndOrderFront(nil)
+        window.makeKeyAndOrderFront(nil)
     }
 
     func showAchievements() {
-        let achievementsWindow = NSWindow(
+        if let existingWindow = achievementsWindow {
+            existingWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 540, height: 580),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
-        achievementsWindow.title = "Achievements"
-        achievementsWindow.center()
-        achievementsWindow.contentView = NSHostingView(
+        window.title = "Achievements"
+        window.center()
+        window.contentView = NSHostingView(
             rootView: AchievementsView()
         )
+        window.delegate = self
+        achievementsWindow = window
         NSApp.activate(ignoringOtherApps: true)
-        achievementsWindow.makeKeyAndOrderFront(nil)
+        window.makeKeyAndOrderFront(nil)
     }
 
     // MARK: - Sleep/Wake Handling
@@ -410,7 +460,40 @@ final class MenuBarController: NSObject, ObservableObject {
         // Invalidate and recreate display service
         displayReconnectionTimer?.invalidate()
         displayReconnectionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
-            self?.taxManager.refreshDisplayConnection()
+            Task { @MainActor in
+                self?.taxManager.refreshDisplayConnection()
+            }
         }
+    }
+
+    // MARK: - NSPopoverDelegate
+
+    func popoverDidClose(_ notification: Notification) {
+        // Release hosting controller to prevent memory issues
+        hostingController = nil
+    }
+}
+
+// MARK: - NSWindowDelegate
+
+extension MenuBarController: NSWindowDelegate {
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        // Clear content view first to stop SwiftUI rendering
+        sender.contentView = nil
+
+        // Defer clearing the reference to allow CA to clean up
+        DispatchQueue.main.async { [weak self] in
+            if sender === self?.settingsWindow {
+                self?.settingsWindow = nil
+            } else if sender === self?.premiumWindow {
+                self?.premiumWindow = nil
+            } else if sender === self?.paywallWindow {
+                self?.paywallWindow = nil
+            } else if sender === self?.achievementsWindow {
+                self?.achievementsWindow = nil
+            }
+        }
+
+        return true // Allow close
     }
 }

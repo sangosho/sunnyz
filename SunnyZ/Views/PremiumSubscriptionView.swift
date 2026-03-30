@@ -16,68 +16,91 @@ struct PremiumSubscriptionView: View {
             VStack(spacing: 20) {
                 // Header
                 VStack(spacing: 12) {
-                    Text("👑")
+                    Text(taxManager.hasPremiumSubscription ? "✅" : "👑")
                         .font(.system(size: 64))
-                    
-                    Text("Premium Cave Dweller")
+
+                    Text(taxManager.hasPremiumSubscription ? "You're Premium!" : "Premium Cave Dweller")
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.purple)
-                    
-                    Text("The ultimate late-stage capitalism experience")
+
+                    Text(taxManager.hasPremiumSubscription
+                         ? "Thanks for supporting late-stage capitalism"
+                         : "The ultimate late-stage capitalism experience")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
-                
-                // Pricing
-                VStack(spacing: 4) {
-                    Text("$4.99")
-                        .font(.system(size: 40, weight: .bold))
-                    Text("per month")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(
-                    LinearGradient(
-                        colors: [.purple.opacity(0.3), .pink.opacity(0.3)],
-                        startPoint: .leading,
-                        endPoint: .trailing
+
+                // Pricing or Subscribed badge
+                if taxManager.hasPremiumSubscription {
+                    VStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(.green)
+                        Text("Active Subscription")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        LinearGradient(
+                            colors: [.green.opacity(0.2), .purple.opacity(0.2)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
-                )
-                .cornerRadius(12)
-                
+                    .cornerRadius(12)
+                } else {
+                    VStack(spacing: 4) {
+                        Text("$4.99")
+                            .font(.system(size: 40, weight: .bold))
+                        Text("per month")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        LinearGradient(
+                            colors: [.purple.opacity(0.3), .pink.opacity(0.3)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(12)
+                }
+
                 // Features
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Premium Features")
+                    Text(taxManager.hasPremiumSubscription ? "Your Benefits" : "Premium Features")
                         .font(.headline)
-                    
+
                     PremiumFeatureRow(
                         icon: "💰",
                         title: "No Sunlight Tax",
                         description: "Never pay the $0.99 tax again"
                     )
-                    
+
                     PremiumFeatureRow(
                         icon: "☀️",
                         title: "Unlimited Brightness",
                         description: "Full display brightness 24/7"
                     )
-                    
+
                     PremiumFeatureRow(
                         icon: "📊",
                         title: "Cave Stats",
                         description: "Detailed indoor time analytics"
                     )
-                    
+
                     PremiumFeatureRow(
                         icon: "🏆",
                         title: "Cave Dweller Badge",
                         description: "Show off your commitment"
                     )
-                    
+
                     PremiumFeatureRow(
                         icon: "💻",
                         title: "Developer Mode",
@@ -87,51 +110,76 @@ struct PremiumSubscriptionView: View {
                 .padding()
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(12)
-                
-                // Testimonials
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("What Users Say")
-                        .font(.headline)
-                    
-                    TestimonialCard(
-                        quote: "I haven't seen the sun in 3 weeks. Worth every penny!",
-                        author: "@CaveCoder99"
-                    )
-                    
-                    TestimonialCard(
-                        quote: "Finally, a subscription that understands me.",
-                        author: "@BasementDev"
-                    )
-                }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(12)
-                
-                // Subscribe button
-                Button(action: subscribe) {
-                    if isProcessing {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                    } else {
-                        HStack {
-                            Image(systemName: "crown.fill")
-                            Text("Subscribe $4.99/month")
-                                .fontWeight(.semibold)
+
+                // Only show testimonials and subscribe button if not already premium
+                if !taxManager.hasPremiumSubscription {
+                    // Testimonials
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("What Users Say")
+                            .font(.headline)
+
+                        TestimonialCard(
+                            quote: "I haven't seen the sun in 3 weeks. Worth every penny!",
+                            author: "@CaveCoder99"
+                        )
+
+                        TestimonialCard(
+                            quote: "Finally, a subscription that understands me.",
+                            author: "@BasementDev"
+                        )
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(12)
+
+                    // Subscribe button
+                    Button(action: subscribe) {
+                        if isProcessing {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                        } else {
+                            HStack {
+                                Image(systemName: "crown.fill")
+                                Text("Subscribe $4.99/month")
+                                    .fontWeight(.semibold)
+                            }
                         }
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(isProcessing ? Color.gray : Color.purple)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                    .disabled(isProcessing)
+                    .buttonStyle(.plain)
+
+                    Text("Auto-renews. Cancel anytime. No refunds for sunlight exposure.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                } else {
+                    // Already subscribed message
+                    VStack(spacing: 12) {
+                        Text("You're all set! Enjoy unlimited cave dwelling.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+
+                        Button(action: dismissWindow) {
+                            HStack {
+                                Image(systemName: "checkmark")
+                                Text("Awesome")
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.purple)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                        .buttonStyle(.plain)
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(isProcessing ? Color.gray : Color.purple)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-                .disabled(isProcessing)
-                .buttonStyle(.plain)
-                
-                Text("Auto-renews. Cancel anytime. No refunds for sunlight exposure.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
             }
             .padding()
         }
@@ -141,12 +189,16 @@ struct PremiumSubscriptionView: View {
     private func subscribe() {
         isProcessing = true
         
-        Task {
-            try? await taxManager.purchasePremium()
+        Task { @MainActor in
+            defer { isProcessing = false }
             
-            await MainActor.run {
-                isProcessing = false
+            do {
+                try await taxManager.purchasePremium()
+                
                 dismissWindow()
+                
+                // Small delay to let window close first
+                try await Task.sleep(for: .milliseconds(100))
                 
                 let alert = NSAlert()
                 alert.messageText = "Welcome to Premium! 👑"
@@ -154,6 +206,8 @@ struct PremiumSubscriptionView: View {
                 alert.alertStyle = .informational
                 alert.addButton(withTitle: "Awesome")
                 alert.runModal()
+            } catch {
+                // Handle error
             }
         }
     }

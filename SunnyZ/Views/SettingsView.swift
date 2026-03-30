@@ -84,13 +84,21 @@ struct SettingsView: View {
         }
         .onDisappear {
             invalidateTimers()
+            // Force SwiftUI to clean up any pending animations
+            withAnimation(.none) {}
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { _ in
+            invalidateTimers()
         }
     }
     
     // MARK: - Window Management
-    
+
     private func dismissWindow() {
-        NSApplication.shared.keyWindow?.close()
+        // Find the parent window and close it properly
+        if let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isKeyWindow }) {
+            window.close()
+        }
     }
     
     // MARK: - Easter Egg Handler

@@ -362,6 +362,12 @@ final class SunlightTaxManager: ObservableObject {
     
     /// In debug mode, simulates premium purchase without touching StoreKit.
     func purchasePremium() async throws {
+        // Guard: already premium
+        guard !hasPremiumSubscription else {
+            print("[SunnyZ] Already have premium subscription")
+            return
+        }
+
         if debugModeEnabled {
             // Simulate a fake premium purchase
             try await Task.sleep(nanoseconds: 2_000_000_000) // fake "processing" delay
@@ -372,7 +378,7 @@ final class SunlightTaxManager: ObservableObject {
             taxStatus = .premium
             return
         }
-        
+
         try await Task.sleep(nanoseconds: 500_000_000)
         hasPremiumSubscription = true
         UserDefaults.standard.set(true, forKey: kHasPremium)

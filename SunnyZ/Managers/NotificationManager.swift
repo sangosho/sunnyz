@@ -205,8 +205,9 @@ final class NotificationManager: NSObject, ObservableObject {
     private func checkAuthorizationStatus() {
         guard canUseNotifications else { return }
         UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let isAuthorized = settings.authorizationStatus == .authorized
             Task { @MainActor in
-                self.isAuthorized = settings.authorizationStatus == .authorized
+                self.isAuthorized = isAuthorized
             }
         }
     }

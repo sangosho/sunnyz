@@ -22,7 +22,14 @@ struct ConfettiView: View {
         .onChange(of: isActive) { newValue in
             if newValue {
                 startConfetti()
+            } else {
+                // Clear particles when animation is deactivated
+                particles.removeAll()
             }
+        }
+        .onDisappear {
+            // Clear particles to stop any ongoing animations
+            particles.removeAll()
         }
     }
 
@@ -71,6 +78,7 @@ struct ConfettiParticleView: View {
     @State private var y: CGFloat
     @State private var rotation: Double
     @State private var wobbleOffset: Double
+    @State private var isAnimating = false
 
     init(particle: ConfettiParticle) {
         self.particle = particle
@@ -87,7 +95,10 @@ struct ConfettiParticleView: View {
             .offset(x: particle.wobble * sin(wobbleOffset))
             .offset(y: y)
             .onAppear {
+                guard !isAnimating else { return }
+                isAnimating = true
                 let screenHeight = NSScreen.main?.frame.height ?? 600
+                // Use explicit animation with completion to prevent mid-transaction deallocation
                 withAnimation(
                     .linear(duration: 3.0)
                 ) {
@@ -95,6 +106,13 @@ struct ConfettiParticleView: View {
                     rotation += 720
                     wobbleOffset += 20
                 }
+            }
+            .onDisappear {
+                isAnimating = false
+                // Reset animation state to prevent Core Animation issues
+                y = particle.y
+                rotation = particle.rotation
+                wobbleOffset = particle.wobbleOffset
             }
     }
 }

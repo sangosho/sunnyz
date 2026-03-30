@@ -119,22 +119,37 @@ struct TaxPaywallView: View {
     }
     
     private func payTax() {
+        // Guard: can only pay tax when actually taxed
+        guard taxManager.taxStatus == .taxed else {
+            let alert = NSAlert()
+            alert.messageText = "No Tax Due"
+            alert.informativeText = "You haven't been taxed yet. Spend \(taxManager.formattedTimeUntilTax) more in darkness to incur the sunlight tax."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+            return
+        }
+
         isProcessing = true
-        
-        Task {
-            try? await taxManager.payTax()
+
+        Task { @MainActor in
+            defer { isProcessing = false }
             
-            await MainActor.run {
-                isProcessing = false
+            do {
+                try await taxManager.payTax()
                 dismissWindow()
                 
-                // Show success alert
+                // Small delay
+                try await Task.sleep(for: .milliseconds(100))
+                
                 let alert = NSAlert()
                 alert.messageText = "Tax Paid! ✅"
                 alert.informativeText = "Brightness restored for 1 hour."
                 alert.alertStyle = .informational
                 alert.addButton(withTitle: "Great")
                 alert.runModal()
+            } catch {
+                // Handle error
             }
         }
     }

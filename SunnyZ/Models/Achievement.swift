@@ -8,7 +8,7 @@
 import Foundation
 
 /// Represents an achievement badge in SunnyZ
-struct Achievement: Identifiable, Codable, Equatable {
+struct Achievement: Identifiable, Codable, Equatable, Sendable {
     let id: String
     let icon: String
     let title: String
@@ -19,13 +19,13 @@ struct Achievement: Identifiable, Codable, Equatable {
     var unlockedAt: Date?
     var progress: Double // 0.0 to 1.0
 
-    enum AchievementCategory: String, Codable {
+    enum AchievementCategory: String, Codable, Sendable {
         case caveDwelling = "Cave Dwelling"
         case financial = "Financial"
         case special = "Special"
     }
 
-    enum AchievementCondition: Codable, Equatable {
+    enum AchievementCondition: Codable, Equatable, Sendable {
         case vampireDarkness(hours: Int)
         case caveTrollDays(days: Int, dailyHours: Int)
         case diamondHands(payments: Int)

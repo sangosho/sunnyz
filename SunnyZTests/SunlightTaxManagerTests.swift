@@ -12,8 +12,15 @@ import XCTest
 final class SunlightTaxManagerTests: XCTestCase {
     
     var taxManager: SunlightTaxManager!
-    
+
     override func setUp() async throws {
+        // Reset persisted state for clean test isolation
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: "sunlightTax.totalPaid")
+        defaults.removeObject(forKey: "sunlightTax.hasPremium")
+        defaults.removeObject(forKey: "sunlightTax.lastSunlight")
+        defaults.removeObject(forKey: "sunlightTax.darknessStartTime")
+        defaults.removeObject(forKey: "sunlightTax.timeInDarkness")
         taxManager = await SunlightTaxManager()
     }
     
