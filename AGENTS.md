@@ -44,13 +44,24 @@ SunnyZ/
 ## Build & Run
 
 ```bash
-# SPM
+# Build distributable .app bundle (production)
+./build-app.sh
+
+# Run the built app
+open ./build/SunnyZ.app
+
+# Create GitHub release
+./create-release.sh 1.0.0
+
+# SPM (development)
 swift build
 swift run
 
 # Xcode
-open SunnyZ.xcodeproj  # or generate with `swift package generate-xcodeproj`
+open Package.swift
 ```
+
+**Note:** Use `./build-app.sh` for production builds. The `swift run` command disables notifications (requires `.app` bundle).
 
 ## Code Conventions
 
@@ -90,6 +101,8 @@ Tests run without hardware (no sensor/display required). Note: tests create `@Ma
 
 | Task | How |
 |------|-----|
+| Build for distribution | Run `./build-app.sh` to create `./build/SunnyZ.app` |
+| Create GitHub release | Run `./create-release.sh X.Y.Z` and upload the generated ZIP |
 | Add a new achievement | Add case to `Achievement.Category`, add model in `AchievementManager.checkAchievements()` |
 | Add a new setting | Add key to `SettingsManager`, add control to `SettingsView.swift` |
 | Change snark level | Add strings to `SnarkManager` for the appropriate level |

@@ -63,22 +63,32 @@ Unlock badges for your cave-dwelling behavior:
 
 ## Installation
 
+### Download Release (Recommended)
+
+1. Download the latest `SunnyZ-X.Y.Z-macos-arm64.zip` from [Releases](https://github.com/sangosho/sunnyz/releases)
+2. Extract the zip file
+3. Move `SunnyZ.app` to your Applications folder
+4. Launch the app
+
+**Requires:** macOS 13.0+ and Apple Silicon (M1/M2/M3/M4)
+
+### Build from Source
+
 ```bash
 git clone https://github.com/sangosho/sunnyz.git
 cd sunnyz
-swift build
 
-# Run:
-swift run
+# Build distributable .app bundle:
+./build-app.sh
 
 # Run tests:
 swift test
 
-# Or build release:
-swift build -c release
+# Or run directly (limited features):
+swift run
 ```
 
-> **Note:** `swift run` works for basic testing but notifications are disabled (requires a proper .app bundle). For the full experience, open with Xcode: `open Package.swift` then press ⌘R.
+See [BUILD.md](BUILD.md) for detailed build instructions and distribution guide.
 
 ## Permissions
 
