@@ -88,8 +88,14 @@ final class LuxSensorManager: ObservableObject {
     }
     
     deinit {
-        // Don't access @MainActor-isolated properties from deinit.
-        // IOKit handles are cleaned up by the OS when the process exits.
+        // io_object_t is a plain C integer (mach_port_t), not a Swift actor-isolated
+        // type, so it is safe to release directly from deinit without a MainActor hop.
+        if alsService != 0 {
+            IOObjectRelease(alsService)
+        }
+        if lmuService != 0 {
+            IOObjectRelease(lmuService)
+        }
     }
     
     // MARK: - ALS Detection
@@ -114,17 +120,6 @@ final class LuxSensorManager: ObservableObject {
         accuracy = hasALSSensor ? .accurate : .estimated
         
         print("[SunnyZ] ALS Sensor detected: \(hasALSSensor)")
-    }
-    
-    private func releaseServices() {
-        if alsService != 0 {
-            IOObjectRelease(alsService)
-            alsService = 0
-        }
-        if lmuService != 0 {
-            IOObjectRelease(lmuService)
-            lmuService = 0
-        }
     }
     
     // MARK: - Lux Reading

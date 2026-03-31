@@ -21,7 +21,7 @@ final class SunlightTaxManagerTests: XCTestCase {
         defaults.removeObject(forKey: "sunlightTax.lastSunlight")
         defaults.removeObject(forKey: "sunlightTax.darknessStartTime")
         defaults.removeObject(forKey: "sunlightTax.timeInDarkness")
-        taxManager = await SunlightTaxManager()
+        taxManager = SunlightTaxManager()
     }
     
     // MARK: - TaxStatus Enum Tests

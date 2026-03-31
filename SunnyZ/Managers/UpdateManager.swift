@@ -5,89 +5,86 @@
 //  Handles automatic app updates using Sparkle framework
 //
 
+import Combine
 import Foundation
 import Sparkle
 
-/// Manages app updates using Sparkle framework
+/// Manages app updates using Sparkle framework.
+///
+/// Follows the official Sparkle 2 programmatic SwiftUI setup pattern:
+/// https://sparkle-project.org/documentation/programmatic-setup
+///
+/// Key design decisions based on official docs:
+/// - `canCheckForUpdates` is driven by KVO on `SPUUpdater.canCheckForUpdates`,
+///   not set manually — so the menu item reflects the true updater state.
+/// - We do NOT call `checkForUpdatesInBackground` manually on startup; Sparkle
+///   handles scheduling automatically (default: every 24 hours).
+/// - The appcast URL is provided via `feedURLString(for:)` delegate method,
+///   which overrides the `SUFeedURL` in Info.plist at runtime.
 @MainActor
 final class UpdateManager: NSObject, ObservableObject {
 
     static let shared = UpdateManager()
 
-    private let updaterController: SPUStandardUpdaterController
+    // Stored as `var` (implicitly-unwrapped optional) so we can complete
+    // `super.init()` before passing `self` as the delegate — required by
+    // Swift's two-phase initialisation rule for NSObject subclasses.
+    // Sparkle stores the delegate weakly, so UpdateManager.shared keeps it alive.
+    private var updaterController: SPUStandardUpdaterController!
 
+    /// Mirrors `SPUUpdater.canCheckForUpdates` via KVO for use in SwiftUI.
     @Published var canCheckForUpdates = false
+
+    /// Mirrors `SPUUpdater.automaticallyChecksForUpdates` (backed by NSUserDefaults).
     @Published var automaticallyChecksForUpdates = true
+
+    /// Mirrors `SPUUpdater.automaticallyDownloadsUpdates` (backed by NSUserDefaults).
     @Published var automaticallyDownloadsUpdates = false
 
+    private var cancellables = Set<AnyCancellable>()
+
     private override init() {
-        // Initialize Sparkle updater controller
+        super.init()
+
+        // Create the controller with `startingUpdater: false` so we finish
+        // wiring up KVO before the first automatic check fires, then start it.
         updaterController = SPUStandardUpdaterController(
-            startingUpdater: true,
-            updaterDelegate: nil,
+            startingUpdater: false,
+            updaterDelegate: self,
             userDriverDelegate: nil
         )
 
-        super.init()
+        // Drive `canCheckForUpdates` from Sparkle's KVO-compliant property
+        // rather than hardcoding it to `true`.
+        updaterController.updater
+            .publisher(for: \.canCheckForUpdates)
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$canCheckForUpdates)
 
-        // Configure update settings
-        configureUpdates()
-    }
+        // Mirror the user-preference-backed properties once on startup.
+        automaticallyChecksForUpdates = updaterController.updater.automaticallyChecksForUpdates
+        automaticallyDownloadsUpdates = updaterController.updater.automaticallyDownloadsUpdates
 
-    private func configureUpdates() {
-        let updater = updaterController.updater
-
-        // Enable automatic update checks (daily)
-        updater.automaticallyChecksForUpdates = true
-
-        // Check for updates on startup (with a small delay to not slow down launch)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-            updater.checkForUpdatesInBackground()
-        }
-
-        // Get current settings
-        canCheckForUpdates = true
-        automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
-        automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates
-
-        // Observe settings changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(updateSettingsChanged),
-            name: NSNotification.Name("SUUpdateSettingsChanged"),
-            object: nil
-        )
+        updaterController.startUpdater()
     }
 
     // MARK: - Public Methods
 
-    /// Check for updates immediately (shows UI if update available)
+    /// Triggers a user-visible update check (shows progress/results UI).
     func checkForUpdates() {
         updaterController.updater.checkForUpdates()
     }
 
-    /// Toggle automatic update checks
+    /// Persists the user's preference for automatic update checks.
     func setAutomaticallyChecksForUpdates(_ enabled: Bool) {
         updaterController.updater.automaticallyChecksForUpdates = enabled
         automaticallyChecksForUpdates = enabled
     }
 
-    /// Toggle automatic download of updates
+    /// Persists the user's preference for automatic update downloads.
     func setAutomaticallyDownloadsUpdates(_ enabled: Bool) {
         updaterController.updater.automaticallyDownloadsUpdates = enabled
         automaticallyDownloadsUpdates = enabled
-    }
-
-    // MARK: - Private Methods
-
-    @objc private func updateSettingsChanged() {
-        let updater = updaterController.updater
-        automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
-        automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates
-    }
-
-    deinit {
-        NotificationCenter.default.removeObserver(self)
     }
 }
 
@@ -95,9 +92,8 @@ final class UpdateManager: NSObject, ObservableObject {
 
 extension UpdateManager: SPUUpdaterDelegate {
 
-    /// Returns the URL for the appcast feed
-    func feedURLString(for updater: SPUUpdater) -> String? {
-        // Appcast hosted on GitHub releases
-        return "https://raw.githubusercontent.com/sangosho/sunnyz/main/appcast.xml"
+    /// Overrides the `SUFeedURL` Info.plist key at runtime.
+    nonisolated func feedURLString(for updater: SPUUpdater) -> String? {
+        "https://raw.githubusercontent.com/sangosho/sunnyz/main/appcast.xml"
     }
 }

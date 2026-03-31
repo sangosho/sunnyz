@@ -7,19 +7,34 @@
 
 import SwiftUI
 
+// MARK: - Easter Egg State
+
+/// Holds mutable click-counting state for the version-tap easter egg.
+/// Using a class (reference type) lets a Timer closure capture a stable
+/// reference instead of a stale copy of the SwiftUI struct.
+@MainActor
+private final class VersionTapState: ObservableObject {
+    var clickCount = 0
+    var timer: Timer?
+
+    func invalidateTimer() {
+        timer?.invalidate()
+        timer = nil
+    }
+}
+
 struct SettingsView: View {
     @ObservedObject private var settings = SettingsManager.shared
     @ObservedObject private var notificationManager = NotificationManager.shared
     @ObservedObject var taxManager: SunlightTaxManager
-    
+
     @State private var selectedTab: SettingsTab = .notifications
     @State private var showingResetConfirmation = false
     @State private var showingCalibrationSheet = false
-    
+
     // MARK: - Debug Mode State
     @State private var showingDebugPanel = false
-    @State private var versionClickCount = 0
-    @State private var versionClickTimer: Timer?
+    @StateObject private var tapState = VersionTapState()
     
     enum SettingsTab: String, CaseIterable, Identifiable {
         case notifications = "Notifications"
@@ -108,38 +123,36 @@ struct SettingsView: View {
     
     private func handleVersionTap() {
         #if DEBUG
-        versionClickCount += 1
-        
+        tapState.clickCount += 1
+
         // Reset timer if already running
-        versionClickTimer?.invalidate()
-        
-        // Start new timer to reset count after 3 seconds.
-        // Capture versionClickCount binding directly since SettingsView is a struct.
-        let countBinding = _versionClickCount
-        versionClickTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+        tapState.invalidateTimer()
+
+        // Timer captures the @StateObject (a stable reference type), so it
+        // safely mutates the live click count rather than a stale struct copy.
+        tapState.timer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak tapState] _ in
             Task { @MainActor in
-                countBinding.wrappedValue = 0
+                tapState?.clickCount = 0
             }
         }
-        
+
         // Enable debug mode after 5 clicks
-        if versionClickCount >= 5 {
-            versionClickTimer?.invalidate()
-            versionClickCount = 0
+        if tapState.clickCount >= 5 {
+            tapState.invalidateTimer()
+            tapState.clickCount = 0
             settings.debugModeEnabled = true
-            
+
             // Provide haptic feedback
             let generator = NSHapticFeedbackManager.defaultPerformer
             generator.perform(.generic, performanceTime: .default)
         }
         #endif
     }
-    
+
     // MARK: - Cleanup
-    
+
     private func invalidateTimers() {
-        versionClickTimer?.invalidate()
-        versionClickTimer = nil
+        tapState.invalidateTimer()
     }
     
     private var toolbar: some View {
@@ -661,7 +674,7 @@ struct AboutTab: View {
                         Text("SunnyZ")
                             .font(.title2)
                             .fontWeight(.bold)
-                        Text("Version 1.0.0 (Build 1.0.0)")
+                        Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—") (Build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .onTapGesture {
@@ -821,10 +834,12 @@ struct AboutTab: View {
                     .tint(.orange)
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Build: 1.0.0")
+                        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+                        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+                        Text("Build: \(build)")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text("Version: 1.0.0 (Sprint 2)")
+                        Text("Version: \(version)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

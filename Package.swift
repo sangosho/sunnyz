@@ -29,8 +29,11 @@ let package = Package(
                 .process("Preview Content/Preview Assets.xcassets"),
             ],
             swiftSettings: [
-                .unsafeFlags(["-framework", "IOKit"]),
-                .unsafeFlags(["-framework", "ServiceManagement"])
+                .enableUpcomingFeature("StrictConcurrency")
+            ],
+            linkerSettings: [
+                .linkedFramework("IOKit"),
+                .linkedFramework("ServiceManagement")
             ]
         ),
         .testTarget(

@@ -127,7 +127,11 @@ final class SnarkManager: ObservableObject {
     // MARK: - Private Properties
     
     private var shownMessageIndices: [SnarkLevel: Set<Int>] = [:]
-    private var reminderTimer: Timer?
+    // `nonisolated(unsafe)` allows deinit (which is nonisolated in Swift 6)
+    // to invalidate the timer without a MainActor hop. All other accesses to
+    // this property happen on the MainActor, so the lack of isolation checks
+    // here is safe in practice.
+    private nonisolated(unsafe) var reminderTimer: Timer?
     private var lastShownMessage: String?
     private var currentSessionMessages: [String] = []
     
@@ -188,6 +192,8 @@ final class SnarkManager: ObservableObject {
     }
     
     deinit {
+        reminderTimer?.invalidate()
+        reminderTimer = nil
         NotificationCenter.default.removeObserver(self)
     }
     
