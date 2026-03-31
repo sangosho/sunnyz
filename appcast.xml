@@ -7,13 +7,13 @@
     <language>en</language>
 
     <item>
-      <title>Version 1.0.0</title>
-      <link>https://github.com/sangosho/sunnyz/releases/download/v1.0.0/SunnyZ-1.0.0-macos-arm64.zip</link>
-      <sparkle:version>1.0.0</sparkle:version>
-      <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+      <title>Version 1.1.0</title>
+      <link>https://github.com/sangosho/sunnyz/releases/download/v1.1.0/SunnyZ-1.1.0-macos-arm64.zip</link>
+      <sparkle:version>1.1.0</sparkle:version>
+      <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
       <description>
         <![CDATA[
-          <h2>SunnyZ 1.0.0</h2>
+          <h2>SunnyZ 1.1.0</h2>
           <ul>
             <li>Production-ready macOS app bundle</li>
             <li>Automatic updates via Sparkle</li>
@@ -22,13 +22,13 @@
           </ul>
         ]]>
       </description>
-      <pubDate>Tue, 31 Mar 2026 03:13:32 GMT</pubDate>
+      <pubDate>Tue, 31 Mar 2026 04:12:17 GMT</pubDate>
       <enclosure
-        url="https://github.com/sangosho/sunnyz/releases/download/v1.0.0/SunnyZ-1.0.0-macos-arm64.zip"
-        sparkle:version="1.0.0"
-        sparkle:shortVersionString="1.0.0"
-        sparkle:edSignature="jurcF0ng8y+7uJ1BfxdHorugXOzXTSEoDWeFm6uuhVSh7DKURCS8LKgIMem1+lqnidtAi0gBy3EYLKftQUNFBg=="
-        length="501104"
+        url="https://github.com/sangosho/sunnyz/releases/download/v1.1.0/SunnyZ-1.1.0-macos-arm64.zip"
+        sparkle:version="1.1.0"
+        sparkle:shortVersionString="1.1.0"
+        sparkle:edSignature="cPj2XCei+Vv0+pUEpye7i6geg/DZxkk+20oSXGoP8RJaUNWU66rFVZNQft3UXISntwKdl4LK6BkzTUvt7nRMBw=="
+        length="521813"
         type="application/octet-stream"
       />
     </item>
