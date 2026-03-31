@@ -522,30 +522,96 @@ struct TaxSettingsTab: View {
                     Text("Brightness Limit Preview")
                         .font(.headline)
                 }
-                
+
                 HStack {
                     Image(systemName: "sun.max.fill")
                         .foregroundColor(.yellow)
-                    
+
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 4)
                                 .fill(Color.gray.opacity(0.2))
-                            
+
                             RoundedRectangle(cornerRadius: 4)
                                 .fill(Color.yellow.opacity(0.5))
                                 .frame(width: geo.size.width * 0.5)
                         }
                     }
                     .frame(height: 20)
-                    
+
                     Image(systemName: "sun.min.fill")
                         .foregroundColor(.gray)
                 }
-                
+
                 Text("When taxed, screen brightness is limited to 50%")
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
+
+            // DANGEROUS: Real Payments Toggle
+            SettingsSection {
+                HStack {
+                    Image(systemName: "creditcard.trianglebadge.exclamationmark.fill")
+                        .foregroundColor(.red)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Dangerous Settings")
+                            .font(.headline)
+                            .foregroundColor(.red)
+                        Text("⚠️ Satirical feature - do not enable")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Toggle("Enable real payments", isOn: $settings.dangerouslySkipPermission)
+                    .toggleStyle(.switch)
+                    .tint(.red)
+
+                if settings.dangerouslySkipPermission {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                            .font(.caption)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("You've enabled real payments.")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.red)
+                            Text("The fake $0.99 tax will now charge your actual Apple Pay. This is not a joke.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("We warned you. 😈")
+                                .font(.caption2)
+                                .italic()
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(8)
+
+                    Button(action: {
+                        settings.dangerouslySkipPermission = false
+                    }) {
+                        HStack {
+                            Image(systemName: "xmark.circle.fill")
+                            Text("Disable Real Payments")
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .controlSize(.large)
+                }
+
+                if !settings.dangerouslySkipPermission {
+                    Text("When enabled, payments will be processed via Apple Pay instead of being simulated. You have been warned.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
         }
     }

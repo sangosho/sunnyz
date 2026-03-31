@@ -66,6 +66,12 @@ final class SettingsManager: ObservableObject {
             #endif
         }
     }
+
+    // DANGEROUS: Skip the "fake payments" safeguard and process REAL payments via Apple Pay
+    // This is a satirical feature - please don't actually enable this 🙏
+    @Published var dangerouslySkipPermission: Bool {
+        didSet { save(.dangerouslySkipPermission, value: dangerouslySkipPermission) }
+    }
     
     // MARK: - Enums
     
@@ -105,6 +111,8 @@ final class SettingsManager: ObservableObject {
         case launchAtLogin = "sunnyz.settings.general.launchAtLogin"
         // NEW: Debug mode key for development/testing features
         case debugModeEnabled = "sunnyz.settings.debug.enabled"
+        // DANGEROUS: Real payments key - satire only, please don't use
+        case dangerouslySkipPermission = "sunnyz.settings.dangerouslySkipPermission"
     }
     
     // MARK: - Stats Keys (for reset functionality)
@@ -144,6 +152,9 @@ final class SettingsManager: ObservableObject {
         #else
         self.debugModeEnabled = false
         #endif
+
+        // DANGEROUS: Load real payments setting - default to FALSE for everyone's safety
+        self.dangerouslySkipPermission = defaults.object(forKey: Key.dangerouslySkipPermission.rawValue) as? Bool ?? false
         
         // Sync launch at login state with system
         updateLaunchAtLogin()

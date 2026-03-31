@@ -345,10 +345,22 @@ final class SunlightTaxManager: ObservableObject {
     
     /// In debug mode, simulates a payment without touching StoreKit.
     /// Shows a convincing "processing" animation but no real charge.
+    ///
+    /// DANGEROUS: If `dangerouslySkipPermission` is enabled in SettingsManager,
+    /// this would process REAL Apple Pay transactions. For now, we still simulate
+    /// because implementing actual StoreKit IAP requires:
+    /// 1. App Store Connect setup
+    /// 2. Consumable IAP product configuration
+    /// 3. StoreKit2 integration with Transaction.updates
+    /// 4. Sandbox testing
+    /// ...and you probably don't actually want to charge people for a satirical app 😅
     func payTax() async throws {
-        if debugModeEnabled {
+        let dangerouslyEnabled = SettingsManager.shared.dangerouslySkipPermission
+
+        if debugModeEnabled || !dangerouslyEnabled {
             // Simulate a fake payment — looks real to the user, no charge
-            try await Task.sleep(nanoseconds: 1_500_000_000) // fake "processing" delay
+            let processingDelay = debugModeEnabled ? 1_500_000_000 : 500_000_000
+            try await Task.sleep(nanoseconds: UInt64(processingDelay))
             brightnessLimit = 1.0
             setDisplayBrightness(1.0)
             totalTaxPaid += Double(truncating: taxAmount as NSNumber)
@@ -358,20 +370,25 @@ final class SunlightTaxManager: ObservableObject {
             scheduleTaxReliefExpiry()
             return
         }
-        
-        try await Task.sleep(nanoseconds: 500_000_000)
+
+        // TODO: Implement real Apple Pay via StoreKit2 when dangerouslySkipPermission is enabled
+        // This would require:
+        // - import StoreKit
+        // - Product.purchase() calls
+        // - Transaction.updates listener
+        // - Receipt validation
+        // For now, even with the toggle enabled, we still simulate because implementing
+        // real payments for a satirical app is... a choice.
+        print("[SunnyZ] ⚠️ Real payments enabled but not implemented. Still simulating.")
+        try await Task.sleep(nanoseconds: 2_000_000_000) // Longer delay to feel "real"
         brightnessLimit = 1.0
         setDisplayBrightness(1.0)
         totalTaxPaid += Double(truncating: taxAmount as NSNumber)
         UserDefaults.standard.set(totalTaxPaid, forKey: kTotalTaxPaid)
-
-        // Track tax payment for achievements
         AchievementManager.shared.handleTaxPayment()
-
-        // Temporary tax relief - reset after 1 hour
         scheduleTaxReliefExpiry()
     }
-    
+
     /// In debug mode, simulates premium purchase without touching StoreKit.
     func purchasePremium() async throws {
         // Guard: already premium

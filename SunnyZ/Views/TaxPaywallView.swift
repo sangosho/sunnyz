@@ -9,24 +9,48 @@ import SwiftUI
 
 struct TaxPaywallView: View {
     @ObservedObject var taxManager: SunlightTaxManager
+    @ObservedObject private var settings = SettingsManager.shared
     @State private var isProcessing = false
-    
+
+    private var isRealPaymentsEnabled: Bool {
+        settings.dangerouslySkipPermission
+    }
+
     var body: some View {
         VStack(spacing: 20) {
             // Header
             VStack(spacing: 12) {
-                Text("💸")
-                    .font(.system(size: 64))
-                
-                Text("SUNLIGHT TAX DUE")
+                if isRealPaymentsEnabled {
+                    Text("💀")
+                        .font(.system(size: 64))
+                } else {
+                    Text("💸")
+                        .font(.system(size: 64))
+                }
+
+                Text(isRealPaymentsEnabled ? "REAL PAYMENT DUE" : "SUNLIGHT TAX DUE")
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundColor(.red)
-                
-                Text("Your cave-dwelling behavior has consequences")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                    .foregroundColor(isRealPaymentsEnabled ? .red : .red)
+
+                if isRealPaymentsEnabled {
+                    VStack(spacing: 4) {
+                        Text("You enabled real payments. This is actually charging you.")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.center)
+                        Text("We warned you in settings. Proceed at your own risk.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                } else {
+                    Text("Your cave-dwelling behavior has consequences")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
             
             Spacer()
@@ -84,6 +108,12 @@ struct TaxPaywallView: View {
                 if isProcessing {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
+                } else if isRealPaymentsEnabled {
+                    HStack {
+                        Image(systemName: "creditcard.trianglebadge.exclamationmark.fill")
+                        Text(isRealPaymentsEnabled ? "PAY $0.99 FOR REAL" : "Pay $0.99 Tax")
+                            .fontWeight(.semibold)
+                    }
                 } else {
                     HStack {
                         Image(systemName: "creditcard.fill")
@@ -94,7 +124,7 @@ struct TaxPaywallView: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(isProcessing ? Color.gray : Color.red)
+            .background(isRealPaymentsEnabled ? Color.red : (isProcessing ? Color.gray : Color.red))
             .foregroundColor(.white)
             .cornerRadius(10)
             .disabled(isProcessing)
@@ -106,16 +136,33 @@ struct TaxPaywallView: View {
             .font(.subheadline)
             .foregroundColor(.secondary)
             .buttonStyle(.plain)
-            
+
+            // Warning when real payments enabled
+            if isRealPaymentsEnabled {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                    Text("⚠️ Real payments via Apple Pay — you were warned")
+                        .font(.caption2)
+                }
+                .foregroundColor(.red)
+                .padding(.top, 4)
+            }
+
             // Subtle debug mode indicator (visible but not distracting)
-            if taxManager.debugModeEnabled {
+            if taxManager.debugModeEnabled && !isRealPaymentsEnabled {
                 Text("🧪 Test Mode — No real charges")
                     .font(.caption2)
                     .foregroundColor(.orange.opacity(0.7))
             }
         }
         .padding()
-        .frame(width: 320, height: taxManager.debugModeEnabled ? 450 : 420)
+        .frame(width: 320, height: {
+            var base: CGFloat = 420
+            if isRealPaymentsEnabled { base += 30 }
+            if taxManager.debugModeEnabled && !isRealPaymentsEnabled { base += 30 }
+            return base
+        }())
     }
     
     private func payTax() {
