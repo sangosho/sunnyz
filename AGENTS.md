@@ -21,7 +21,8 @@ SunnyZ/
 │   ├── SettingsManager.swift    # UserDefaults persistence
 │   ├── NotificationManager.swift# UserNotifications scheduling
 │   ├── AchievementManager.swift # Achievement tracking & unlocking
-│   └── SnarkManager.swift       # Snarky reminder text generation
+│   ├── SnarkManager.swift       # Snarky reminder text generation
+│   └── UpdateManager.swift      # Sparkle auto-update integration
 ├── Views/
 │   ├── ContentView.swift        # Main content wrapper
 │   ├── MenuPopoverView.swift    # Menu bar dropdown UI
@@ -39,6 +40,7 @@ SunnyZ/
 - **UI:** SwiftUI
 - **Platform:** macOS 13+ (Ventura)
 - **Sensors:** IOKit (ambient light sensor)
+- **Updates:** Sparkle 2 (automatic app updates)
 - **Build:** Swift Package Manager / Xcode
 
 ## Build & Run
