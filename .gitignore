@@ -36,3 +36,4 @@ generator-output/
 .vscode/
 *.code-workspace
 *.pem
+default.profraw

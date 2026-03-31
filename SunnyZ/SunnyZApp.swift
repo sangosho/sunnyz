@@ -100,7 +100,7 @@ struct SunnyZApp: App {
         
         print("[SunnyZ] App launched successfully")
         print("[SunnyZ] Tax threshold: \(SettingsManager.shared.formattedTaxThreshold)")
-        print("[SunnyZ] ALS Sensor available: \(LuxSensorManager.shared.hasALSSensor)")
+        print("[SunnyZ] Environment classifier ready (calibrated: \(EnvironmentClassifier.shared.isCalibrated))")
     }
     
     private func setupNotifications() {

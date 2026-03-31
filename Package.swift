@@ -33,7 +33,8 @@ let package = Package(
             ],
             linkerSettings: [
                 .linkedFramework("IOKit"),
-                .linkedFramework("ServiceManagement")
+                .linkedFramework("ServiceManagement"),
+                .linkedFramework("CoreWLAN")
             ]
         ),
         .testTarget(

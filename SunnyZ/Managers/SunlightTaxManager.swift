@@ -7,7 +7,6 @@
 
 import Foundation
 import AppKit
-import IOKit
 import Combine
 
 /// Manages the "Sunlight Tax" - charges users for staying indoors too long
@@ -18,6 +17,8 @@ final class SunlightTaxManager: ObservableObject {
     // MARK: - Published State
     
     @Published var currentLux: Double = 0
+    @Published var environmentState: EnvironmentState = .uncertain
+    @Published var classifierConfidence: Double = 0
     @Published var timeInDarkness: TimeInterval = 0
     @Published var taxStatus: TaxStatus = .exempt
     @Published var brightnessLimit: Double = 1.0
@@ -95,12 +96,12 @@ final class SunlightTaxManager: ObservableObject {
     
     private var cancellables = Set<AnyCancellable>()
     private var darknessStartTime: Date?
-    private var timer: Timer?
-    private var displayService: io_object_t = 0
-    private var taxReliefWorkItem: DispatchWorkItem?
+    nonisolated(unsafe) private var timer: Timer?
+    nonisolated(unsafe) private var uiUpdateTimer: Timer?
+    nonisolated(unsafe) private var taxReliefWorkItem: DispatchWorkItem?
     
     private let settings = SettingsManager.shared
-    private let luxSensor = LuxSensorManager.shared
+    private let classifier = EnvironmentClassifier.shared
     
     private let kTotalTaxPaid = "sunlightTax.totalPaid"
     private let kLastSunlightDate = "sunlightTax.lastSunlight"
@@ -112,23 +113,16 @@ final class SunlightTaxManager: ObservableObject {
     
     init() {
         loadSavedState()
-        setupDisplayConnection()
         startMonitoring()
         setupSubscriptions()
     }
     
     deinit {
-        // Release IOKit display service (nonisolated, safe for deinit)
-        if displayService != 0 {
-            IOObjectRelease(displayService)
-        }
-    }
-
-    private func releaseDisplayService() {
-        if displayService != 0 {
-            IOObjectRelease(displayService)
-            displayService = 0
-        }
+        timer?.invalidate()
+        timer = nil
+        uiUpdateTimer?.invalidate()
+        uiUpdateTimer = nil
+        taxReliefWorkItem?.cancel()
     }
     
     private func setupSubscriptions() {
@@ -183,45 +177,84 @@ final class SunlightTaxManager: ObservableObject {
         }
     }
     
-    private func setupDisplayConnection() {
-        let service = IOServiceGetMatchingService(
-            kIOMainPortDefault,
-            IOServiceMatching("IODisplayConnect")
-        )
-        displayService = service
+    // MARK: - Display Brightness Control
+    //
+    // Uses BrightnessController which wraps DisplayServices (private
+    // framework) on Apple Silicon where IODisplayConnect does not exist.
+    
+    private func getDisplayBrightness() -> Double {
+        return BrightnessController.shared.getBrightness() ?? 1.0
     }
     
-    // MARK: - Monitoring
+    private func setDisplayBrightness(_ value: Double) {
+        let success = BrightnessController.shared.setBrightness(value)
+        if !success {
+            print("[SunnyZ] Failed to set display brightness to \(value)")
+        }
+    }
+    
+    private func enforceBrightnessLimit() {
+        guard taxStatus == .taxed else { return }
+        let currentBrightness = getDisplayBrightness()
+        if currentBrightness > brightnessLimit {
+            setDisplayBrightness(brightnessLimit)
+        }
+    }
     
     func startMonitoring() {
+        // Classification timer (every 5 seconds)
         let interval = debugModeEnabled ? (5.0 / timeAcceleration) : 5.0
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateSunlightStatus()
             }
         }
+
+        // UI update timer (every 1 second for smooth "in dark" counter)
+        uiUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateUITimer()
+            }
+        }
+
         updateSunlightStatus()
     }
-    
+
     func stopMonitoring() {
         timer?.invalidate()
         timer = nil
+        uiUpdateTimer?.invalidate()
+        uiUpdateTimer = nil
         taxReliefWorkItem?.cancel()
         taxReliefWorkItem = nil
         saveState()
     }
+
+    /// Updates just the UI timer (called every second for smooth countdown)
+    private func updateUITimer() {
+        // Update timeInDarkness if we're in darkness
+        if let startTime = darknessStartTime {
+            timeInDarkness = Date().timeIntervalSince(startTime)
+        }
+    }
     
     private func updateSunlightStatus() {
-        // Use LuxSensorManager for readings
-        let lux = luxSensor.readLux()
-        currentLux = lux
-        luxAccuracy = luxSensor.accuracy
+        // Use the multi-signal environment classifier
+        let state = classifier.classify()
+        currentLux = classifier.currentBrightness * 1000 // map 0-1 → 0-1000 lux-equiv for display
+        environmentState = state
+        classifierConfidence = classifier.confidence
+        luxAccuracy = classifier.isCalibrated ? .accurate : .estimated
         currentDisplayBrightness = getDisplayBrightness()
         
-        if lux >= sunlightThreshold {
+        switch state {
+        case .outdoor:
             handleSunlightDetected()
-        } else if lux <= darknessThreshold {
+        case .indoor:
             handleDarknessDetected()
+        case .uncertain:
+            // Don't count uncertain as darkness — too aggressive
+            break
         }
         
         updateTaxStatus()
@@ -233,17 +266,19 @@ final class SunlightTaxManager: ObservableObject {
         if darknessStartTime != nil {
             lastSunlightDate = Date()
             UserDefaults.standard.set(Date(), forKey: kLastSunlightDate)
-            
+
             // Reset notification state when going outside
             NotificationManager.shared.resetNotificationState()
-            
+
             // Post sunlight detected notification for snark manager
             NotificationCenter.default.post(name: .sunlightDetected, object: nil)
-            
+
             darknessStartTime = nil
             timeInDarkness = 0
             brightnessLimit = 1.0
-            
+            isTaxReliefActive = false
+            taxReliefExpiryDate = nil
+
             // Clear saved darkness start time
             UserDefaults.standard.removeObject(forKey: kDarknessStartTime)
         }
@@ -259,13 +294,43 @@ final class SunlightTaxManager: ObservableObject {
         }
     }
     
+    /// Tracks whether the user has paid the tax and has temporary relief (1 hour)
+    private var isTaxReliefActive = false
+    private var taxReliefExpiryDate: Date?
+
+    /// Formatted remaining relief time (e.g., "52 min left" or nil if not active)
+    var formattedReliefRemaining: String? {
+        guard isTaxReliefActive, let expiry = taxReliefExpiryDate else { return nil }
+        let remaining = expiry.timeIntervalSince(Date())
+        guard remaining > 0 else { return nil }
+        let minutes = Int(remaining) / 60
+        if minutes < 1 {
+            return "< 1 min left"
+        } else if minutes == 1 {
+            return "1 min left"
+        } else if minutes < 60 {
+            return "\(minutes) min left"
+        } else {
+            let hours = minutes / 60
+            let mins = minutes % 60
+            return "\(hours)h \(mins)m left"
+        }
+    }
+
     private func updateTaxStatus() {
         if hasPremiumSubscription {
             taxStatus = .premium
             brightnessLimit = 1.0
             return
         }
-        
+
+        // If tax relief is active (paid within last hour), don't clamp brightness
+        if isTaxReliefActive {
+            taxStatus = .taxed
+            brightnessLimit = 1.0
+            return
+        }
+
         if timeInDarkness >= taxThreshold {
             taxStatus = .taxed
             brightnessLimit = taxedBrightnessLimit
@@ -281,6 +346,8 @@ final class SunlightTaxManager: ObservableObject {
     private func handleStatsReset() {
         totalTaxPaid = 0
         hasPremiumSubscription = false
+        isTaxReliefActive = false
+        taxReliefExpiryDate = nil
         lastSunlightDate = nil
         darknessStartTime = nil
         timeInDarkness = 0
@@ -297,47 +364,20 @@ final class SunlightTaxManager: ObservableObject {
         updateTaxStatus()
     }
     
-    // MARK: - Display Brightness Control
-    
-    private func getDisplayBrightness() -> Double {
-        guard displayService != 0 else { return 1.0 }
-        var brightness: Float = 1.0
-        IODisplayGetFloatParameter(
-            displayService,
-            0,
-            kIODisplayBrightnessKey as CFString,
-            &brightness
-        )
-        return Double(brightness)
-    }
-    
-    private func setDisplayBrightness(_ value: Double) {
-        guard displayService != 0 else { return }
-        let clampedValue = max(0, min(1, Float(value)))
-        IODisplaySetFloatParameter(
-            displayService,
-            0,
-            kIODisplayBrightnessKey as CFString,
-            clampedValue
-        )
-    }
-    
-    private func enforceBrightnessLimit() {
-        guard taxStatus == .taxed else { return }
-        let currentBrightness = getDisplayBrightness()
-        if currentBrightness > brightnessLimit {
-            setDisplayBrightness(brightnessLimit)
-        }
-    }
-    
     // MARK: - StoreKit
     
     private func scheduleTaxReliefExpiry() {
         // Cancel any existing tax relief timer
         taxReliefWorkItem?.cancel()
-        
+
+        // Set expiry time (1 hour from now)
+        taxReliefExpiryDate = Date().addingTimeInterval(3600)
+
         let workItem = DispatchWorkItem { [weak self] in
+            self?.isTaxReliefActive = false
+            self?.taxReliefExpiryDate = nil
             self?.updateTaxStatus()
+            self?.enforceBrightnessLimit()
         }
         taxReliefWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 3600, execute: workItem)
@@ -363,6 +403,7 @@ final class SunlightTaxManager: ObservableObject {
             try await Task.sleep(nanoseconds: UInt64(processingDelay))
             brightnessLimit = 1.0
             setDisplayBrightness(1.0)
+            isTaxReliefActive = true
             totalTaxPaid += Double(truncating: taxAmount as NSNumber)
             UserDefaults.standard.set(totalTaxPaid, forKey: kTotalTaxPaid)
             AchievementManager.shared.handleTaxPayment()
@@ -383,6 +424,7 @@ final class SunlightTaxManager: ObservableObject {
         try await Task.sleep(nanoseconds: 2_000_000_000) // Longer delay to feel "real"
         brightnessLimit = 1.0
         setDisplayBrightness(1.0)
+        isTaxReliefActive = true
         totalTaxPaid += Double(truncating: taxAmount as NSNumber)
         UserDefaults.standard.set(totalTaxPaid, forKey: kTotalTaxPaid)
         AchievementManager.shared.handleTaxPayment()
@@ -421,7 +463,8 @@ final class SunlightTaxManager: ObservableObject {
     var formattedTimeInDarkness: String {
         let hours = Int(timeInDarkness) / 3600
         let minutes = Int(timeInDarkness) % 3600 / 60
-        return String(format: "%d:%02d", hours, minutes)
+        let seconds = Int(timeInDarkness) % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
     
     var formattedTotalTax: String {
@@ -456,7 +499,11 @@ final class SunlightTaxManager: ObservableObject {
     }
     
     var luxSensorManager: LuxSensorManager {
-        luxSensor
+        .shared
+    }
+    
+    var environmentClassifier: EnvironmentClassifier {
+        classifier
     }
 
     // MARK: - Sleep/Wake Adjustments
@@ -482,11 +529,11 @@ final class SunlightTaxManager: ObservableObject {
 
     // MARK: - Display Connection Management
 
-    /// Refreshes the display service connection (called after display configuration changes)
+    /// Refreshes the display connection (called after display config changes).
+    /// With DisplayServices this is a no-op — it uses CGDirectDisplayID.
     func refreshDisplayConnection() {
-        releaseDisplayService()
-        setupDisplayConnection()
-        print("[SunnyZ] Display connection refreshed")
+        // DisplayServices is stateless per-call; no connection to refresh.
+        print("[SunnyZ] Display connection refresh (no-op with DisplayServices)")
     }
     
     // MARK: - Debug

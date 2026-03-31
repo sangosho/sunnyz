@@ -702,13 +702,19 @@ struct AboutTab: View {
                 }
                 
                 HStack {
-                    Image(systemName: taxManager.luxSensorManager.hasALSSensor ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .foregroundColor(taxManager.luxSensorManager.hasALSSensor ? .green : .orange)
+                    let classifier = taxManager.environmentClassifier
+                    let isCalibrated = classifier.isCalibrated
+                    let wifiCount = classifier.wifiNetworkCount
+                    let brightness = classifier.currentBrightness
+                    let confidence = taxManager.classifierConfidence
+                    
+                    Image(systemName: isCalibrated ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundColor(isCalibrated ? .green : .orange)
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(taxManager.luxSensorManager.sensorStatusDescription)
+                        Text(taxManager.environmentState.label)
                             .font(.subheadline)
-                        Text("Current reading: \(Int(taxManager.currentLux)) lux")
+                        Text("Brightness: \(String(format: "%.0f", brightness * 100))% · WiFi: \(wifiCount) networks · \(confidence >= 0.6 ? "Confident" : "Learning")")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

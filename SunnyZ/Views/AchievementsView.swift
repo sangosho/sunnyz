@@ -43,6 +43,7 @@ struct AchievementsView: View {
                     achievementsGrid
                 }
                 .padding()
+                .frame(maxWidth: .infinity, minHeight: 0)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -163,6 +164,7 @@ struct AchievementsView: View {
                     }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var filteredAchievements: [Achievement] {

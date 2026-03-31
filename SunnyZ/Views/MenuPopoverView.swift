@@ -100,24 +100,27 @@ struct MenuPopoverView: View {
     }
     
     private var statusTitle: String {
-        switch taxManager.taxStatus {
-        case .exempt: return "Tax Exempt"
-        case .warning: return "Warning"
-        case .taxed: return "TAX DUE"
-        case .premium: return "Premium"
+        // Show environment state, not tax state
+        switch taxManager.environmentState {
+        case .indoor: return "Indoors"
+        case .outdoor: return "Outdoors"
+        case .uncertain: return "Uncertain"
         }
     }
-    
+
     private var statusSubtitle: String {
-        switch taxManager.taxStatus {
-        case .exempt:
-            return "Enjoy the sunlight!"
-        case .warning:
-            return "Tax in \(taxManager.formattedTimeUntilTax)"
-        case .taxed:
-            return "Brightness limited to 50%"
-        case .premium:
-            return "Unlimited cave dwelling"
+        // Show tax relief timer if active
+        if let reliefTime = taxManager.formattedReliefRemaining {
+            return "Tax relief: \(reliefTime)"
+        }
+
+        switch taxManager.environmentState {
+        case .indoor:
+            return "Okay basement dweller"
+        case .outdoor:
+            return "Enjoy the sunshine!"
+        case .uncertain:
+            return "Not sure where you are..."
         }
     }
     
