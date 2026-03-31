@@ -21,7 +21,11 @@ A macOS menu bar app that taxes you for staying indoors too long.
 
 ## Installation
 
-Download `SunnyZ-1.0.0-macos-arm64.zip` from [Releases](https://github.com/sangosho/sunnyz/releases), unzip, and move to Applications.
+1. Download the latest release from [github.com/sangosho/sunnyz/releases](https://github.com/sangosho/sunnyz/releases)
+2. Extract the ZIP and move `SunnyZ.app` to Applications
+3. **First launch:** Right-click the app → **Open** (required to bypass Gatekeeper)
+   - If you see "SunnyZ cannot be opened," go to **System Settings → Privacy & Security** and click **Open Anyway**
+4. Grant **Accessibility** permissions when prompted (required for brightness control)
 
 **Requires:** macOS 13+ and Apple Silicon
 
