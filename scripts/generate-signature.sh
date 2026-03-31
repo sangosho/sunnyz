@@ -25,7 +25,10 @@ if [ ! -f "$PRIVATE_KEY_FILE" ]; then
     exit 1
 fi
 
-# Generate signature using openssl (Ed25519)
-SIGNATURE=$(openssl dgst -sha256 -sign "$PRIVATE_KEY_FILE" -out /dev/stdin "$ARCHIVE_PATH" | base64)
+# Generate signature using openssl (Ed25519) - no explicit digest for EdDSA
+TEMP_SIG=$(mktemp)
+openssl pkeyutl -sign -inkey "$PRIVATE_KEY_FILE" -in "$ARCHIVE_PATH" -out "$TEMP_SIG"
+SIGNATURE=$(base64 -i "$TEMP_SIG" 2>/dev/null || base64 "$TEMP_SIG")
+rm -f "$TEMP_SIG"
 
 echo "$SIGNATURE"

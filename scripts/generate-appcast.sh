@@ -56,7 +56,7 @@ cat > "$APPCAST_FILE" << EOF
         url="${DOWNLOAD_BASE_URL}/${ARCHIVE_NAME}"
         sparkle:version="${VERSION}"
         sparkle:shortVersionString="${VERSION}"
-        sparkle:edSignature="$(./generate-signature.sh "$ARCHIVE_PATH")"
+        sparkle:edSignature="$(./scripts/generate-signature.sh "$ARCHIVE_PATH")"
         length="${FILE_SIZE}"
         type="application/octet-stream"
       />
