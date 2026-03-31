@@ -245,7 +245,7 @@ final class AchievementManager: ObservableObject {
             let progress = timeInDarkness / requiredSeconds
             return (timeInDarkness >= requiredSeconds, progress)
 
-        case .caveTrollDays(let days, let dailyHours):
+        case .caveTrollDays(let days, _):
             let requiredDays = days
             let progress = Double(caveTrollDates.count) / Double(requiredDays)
             return (caveTrollDates.count >= requiredDays, progress)
@@ -266,7 +266,7 @@ final class AchievementManager: ObservableObject {
             let progress = Double(streak) / Double(days)
             return (streak >= days, progress)
 
-        case .nightOwlDays(let days, let startHour, let endHour):
+        case .nightOwlDays(let days, _, _):
             let progress = Double(nightOwlDates.count) / Double(days)
             return (nightOwlDates.count >= days, progress)
 

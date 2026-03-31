@@ -450,11 +450,12 @@ final class NotificationManager: NSObject, ObservableObject {
             trigger: trigger
         )
         
+        let scheduledTime = triggerDate
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
                 print("[SunnyZ] Failed to schedule daily summary: \(error)")
             } else {
-                print("[SunnyZ] Scheduled daily summary for \(triggerDate)")
+                print("[SunnyZ] Scheduled daily summary for \(scheduledTime)")
             }
         }
     }
