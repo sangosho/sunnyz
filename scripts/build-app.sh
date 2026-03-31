@@ -74,6 +74,12 @@ cat > "$CONTENTS/Info.plist" << EOF
     <true/>
     <key>NSSupportsSuddenTermination</key>
     <true/>
+    <key>SUPublicEDKey</key>
+    <string>MCowBQYDK2VwAyEARqWxzksTGpaFI+X9OINC+IGsmISGOSJnf6/Q8xaKnIw=</string>
+    <key>SUFeedURL</key>
+    <string>https://raw.githubusercontent.com/sangosho/sunnyz/main/appcast.xml</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
 </dict>
 </plist>
 EOF

@@ -13,11 +13,15 @@ let package = Package(
             targets: ["SunnyZ"]
         ),
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle.git", from: "2.0.0")
+    ],
     targets: [
         .executableTarget(
             name: "SunnyZ",
-            dependencies: [],
+            dependencies: [
+                .product(name: "Sparkle", package: "Sparkle")
+            ],
             path: "SunnyZ",
             exclude: ["Info.plist"],
             resources: [

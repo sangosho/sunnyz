@@ -35,3 +35,4 @@ generator-output/
 .idea/
 .vscode/
 *.code-workspace
+*.pem

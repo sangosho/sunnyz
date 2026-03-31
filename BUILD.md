@@ -13,7 +13,7 @@ Quick guide to building and distributing SunnyZ as a macOS app bundle.
 ### 1. Build the App
 
 ```bash
-./build-app.sh
+./scripts/build-app.sh
 ```
 
 This creates `./build/SunnyZ.app` - a complete macOS app bundle ready to run.
@@ -54,11 +54,44 @@ SunnyZ/
 
 ### GitHub Release
 
-1. Run: `./create-release.sh 1.0.0`
+1. Run: `./scripts/create-release.sh 1.0.0`
 2. Go to: https://github.com/sangosho/sunnyz/releases/new
 3. Create tag: `v1.0.0`
 4. Upload: `./build/SunnyZ-1.0.0-macos-arm64.zip`
-5. Paste the generated release notes
+5. Commit and push `appcast.xml` to the repository
+6. Paste the generated release notes
+
+### Automatic Updates (Sparkle)
+
+SunnyZ uses **Sparkle** for automatic app updates:
+
+- Users get notified of new updates automatically
+- One-click download and install
+- Delta updates (smaller downloads)
+- Configurable update settings
+
+**Setup (one-time):**
+```bash
+./scripts/setup-sparkle-keys.sh
+```
+
+This generates signing keys. The public key is embedded in the app; the private key stays on your machine (never commit it!).
+
+**How it works:**
+1. `create-release.sh` generates `appcast.xml` with release info
+2. App checks `appcast.xml` on GitHub
+3. If update available, users see update notification
+4. Sparkle downloads and installs updates automatically
+
+**Release workflow with updates:**
+```bash
+./scripts/build-app.sh              # Build app
+./scripts/create-release.sh 1.0.0   # Create release + appcast
+git add appcast.xml
+git commit -m "Update appcast for v1.0.0"
+git push
+# Create GitHub release and upload ZIP
+```
 
 ### Code Signing (Optional)
 

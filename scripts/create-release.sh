@@ -45,6 +45,12 @@ echo "📋 Checksums:"
 echo "   SHA-256: $SHA256"
 echo "   MD5:     $MD5"
 echo ""
+
+# Generate appcast.xml for Sparkle
+echo "📡 Generating appcast.xml for Sparkle..."
+./scripts/generate-appcast.sh "$VERSION"
+
+echo ""
 echo "📝 Release Notes Template:"
 echo "---"
 cat << RELEASE_NOTES

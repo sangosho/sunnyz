@@ -25,7 +25,13 @@ struct SunnyZApp: App {
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
-            
+
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates...") {
+                    UpdateManager.shared.checkForUpdates()
+                }
+            }
+
             CommandGroup(replacing: .appTermination) {
                 Button("Quit SunnyZ") {
                     NSApplication.shared.terminate(nil)
@@ -53,6 +59,9 @@ struct SunnyZApp: App {
         
         // Setup menu bar (triggers MenuBarController.shared lazy initialization)
         _ = MenuBarController.shared
+
+        // Initialize update manager
+        _ = UpdateManager.shared
         
         // Use block-based observers that access the singleton directly.
         // No reference to `self` is captured, so AppDelegate lifecycle

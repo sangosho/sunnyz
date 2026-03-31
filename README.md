@@ -53,6 +53,7 @@ Unlock badges for your cave-dwelling behavior:
 - 🖥️ **Display handling** - Works with multiple displays, handles disconnect/reconnect
 - 🔒 **Privacy-first** - No data collected, everything stored locally
 - ♿ **Accessible** - Full VoiceOver and Dynamic Type support
+- ✨ **Auto-updates** - Sparkle-powered automatic updates (one-click install)
 
 ## Keyboard Shortcuts
 
