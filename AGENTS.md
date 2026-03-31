@@ -36,7 +36,7 @@ SunnyZ/
 
 ## Tech Stack
 
-- **Language:** Swift 5.7+
+- **Language:** Swift 6.0+
 - **UI:** SwiftUI
 - **Platform:** macOS 13+ (Ventura)
 - **Sensors:** IOKit (ambient light sensor)

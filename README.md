@@ -6,7 +6,7 @@ A macOS **menu bar app** that taxes you for staying indoors too long.
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%2013+-lightgrey)
-![Swift](https://img.shields.io/badge/swift-5.7-orange)
+![Swift](https://img.shields.io/badge/swift-6.3-orange)
 
 ## The Pitch
 
