@@ -13,6 +13,7 @@ APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
 CONTENTS="$APP_BUNDLE/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
+FRAMEWORKS="$CONTENTS/Frameworks"
 
 echo "🔨 Building $APP_NAME..."
 
@@ -21,6 +22,7 @@ echo "🧹 Cleaning previous build..."
 rm -rf "$APP_BUNDLE"
 mkdir -p "$MACOS"
 mkdir -p "$RESOURCES"
+mkdir -p "$FRAMEWORKS"
 
 # Build the Swift package
 echo "📦 Building Swift package..."
@@ -29,6 +31,10 @@ swift build -c release 2>&1 | grep -E "(error|warning|Building|Linking)" || true
 # Copy executable
 echo "📋 Copying executable..."
 cp .build/release/$APP_NAME "$MACOS/"
+
+# Add rpath for Frameworks folder so the app can find Sparkle
+echo "🔗 Setting library search path..."
+install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS/$APP_NAME" 2>/dev/null || echo "   (rpath may already exist)"
 
 # Copy resources (bundle, etc.)
 echo "📚 Copying resources..."
@@ -41,6 +47,21 @@ if [ -d "$APP_NAME/Assets.xcassets" ]; then
     echo "🎨 Copying assets..."
     mkdir -p "$RESOURCES/Assets.xcassets"
     cp -R $APP_NAME/Assets.xcassets/* "$RESOURCES/Assets.xcassets/"
+fi
+
+# Copy Sparkle framework
+echo "📚 Copying Sparkle framework..."
+SPARKLE_SOURCE=".build/arm64-apple-macosx/release/Sparkle.framework"
+if [ ! -d "$SPARKLE_SOURCE" ]; then
+    # Try alternative locations
+    SPARKLE_SOURCE=".build/release/Sparkle.framework"
+fi
+if [ -d "$SPARKLE_SOURCE" ]; then
+    cp -R "$SPARKLE_SOURCE" "$FRAMEWORKS/"
+    echo "✅ Sparkle framework copied"
+else
+    echo "⚠️  Warning: Sparkle framework not found at $SPARKLE_SOURCE"
+    echo "   App may not launch correctly."
 fi
 
 # Create Info.plist
@@ -87,14 +108,56 @@ EOF
 # Set executable permissions
 chmod +x "$MACOS/$APP_NAME"
 
-# Optional: Code sign with ad-hoc signature (prevents some macOS warnings)
-echo "✍️  Applying ad-hoc code signature..."
-codesign --force --deep --sign - "$APP_BUNDLE" 2>&1 | grep -v "replacing existing" || true
+# Code sign frameworks and app
+echo "✍️  Applying code signatures..."
+
+ENTITLEMENTS="SunnyZ.entitlements"
+
+if [ -d "$FRAMEWORKS/Sparkle.framework" ]; then
+    SPARKLE_VERSION="$FRAMEWORKS/Sparkle.framework/Versions/Current"
+    
+    # Sign XPC services first (no entitlements needed for these)
+    if [ -d "$SPARKLE_VERSION/XPCServices" ]; then
+        echo "   Signing Sparkle XPC services..."
+        for xpc in "$SPARKLE_VERSION/XPCServices"/*.xpc; do
+            [ -d "$xpc" ] && codesign --force --sign - "$xpc" 2>/dev/null || true
+        done
+    fi
+    
+    # Sign Updater.app
+    if [ -d "$SPARKLE_VERSION/Updater.app" ]; then
+        echo "   Signing Sparkle Updater.app..."
+        codesign --force --sign - "$SPARKLE_VERSION/Updater.app" 2>/dev/null || true
+    fi
+    
+    # Sign Autoupdate tool
+    if [ -f "$SPARKLE_VERSION/Autoupdate" ]; then
+        echo "   Signing Sparkle Autoupdate tool..."
+        codesign --force --sign - "$SPARKLE_VERSION/Autoupdate" 2>/dev/null || true
+    fi
+    
+    # Sign the framework itself
+    echo "   Signing Sparkle framework..."
+    codesign --force --sign - "$FRAMEWORKS/Sparkle.framework" 2>/dev/null || true
+fi
+
+# Sign the main app bundle with entitlements
+echo "   Signing main app bundle..."
+if [ -f "$ENTITLEMENTS" ]; then
+    codesign --force --sign - --entitlements "$ENTITLEMENTS" "$APP_BUNDLE" 2>/dev/null || true
+else
+    codesign --force --sign - "$APP_BUNDLE" 2>/dev/null || true
+fi
 
 # Verify the bundle
 echo "✅ Verifying bundle structure..."
 if [ -f "$MACOS/$APP_NAME" ] && [ -f "$CONTENTS/Info.plist" ]; then
     echo "✅ Bundle structure valid!"
+    if [ -d "$FRAMEWORKS/Sparkle.framework" ]; then
+        echo "✅ Sparkle framework included"
+    else
+        echo "⚠️  Warning: Sparkle framework missing"
+    fi
 else
     echo "❌ Bundle structure invalid!"
     exit 1
