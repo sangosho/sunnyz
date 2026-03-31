@@ -35,6 +35,7 @@ After 4 hours in darkness, your display brightness gets clamped to 50%. Pay $0.9
 - ⚙️ **Settings panel** - Full control over all features (⌘, to open)
 - 🎚️ **Snark level** - Choose from Mild, Medium, or Savage reminders
 - ⏱️ **Tax threshold** - Set to 2h, 4h, or 8h
+- 💀 **Enable real payments** - Satirical toggle to process actual Apple Pay transactions (you were warned)
 - 🌙 **Dark mode** - Full support for system dark mode
 - 🚀 **Launch at login** - Start automatically with your Mac
 
